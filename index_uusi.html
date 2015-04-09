@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <title>Distributed Chess Analysis Project</title>
+    <link rel="stylesheet" type="text/css" href="chessboard-0.3.0.min.css">
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body { font: 13px Helvetica, Arial; }
@@ -11,7 +12,7 @@
         display: none;
       }
 
-      ul#sideBarButtonsUL {
+      ul {
         padding: 12px;
         font-size: 18px;
         list-style: none;
@@ -24,6 +25,37 @@
         cursor: pointer;
       }
 
+      ul#threadsUL li {
+
+        cursor: pointer;
+        display: block;
+        width: 30px;
+        height: 30px;
+        margin-bottom: 10px;
+
+      }
+      ul#threadsUL li.dimThread {
+
+        -webkit-box-shadow: 0px 0px 0px #292929;
+        -moz-box-shadow: 0px 0px 0px #292929;
+        box-shadow: 0px 0px 0px #292929;
+
+      }
+      ul#threadsUL li.lidThread {
+
+        -webkit-box-shadow: 0px 0px 3px #292929;
+        -moz-box-shadow: 0px 0px 3px #292929;
+        box-shadow: 0px 0px 3px #292929;
+
+      }
+
+      ul#threadsUL li.running {
+        background-color: green;
+      }
+
+      ul#threadsUL li.suspended {
+        background-color: red;
+      }
       button {
 
         cursor: pointer;
@@ -32,8 +64,7 @@
 
     </style>
     <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
-
-    <script src="chess.js"></script>
+    <script src="chessboard-0.3.0.min.js"></script>
 
   </head>
   <body>
@@ -54,8 +85,20 @@
       <button data-dispatch="endAnalysis">End Analysis</button>
 
     </div>
+    <div id="suspendedView" class="mainView">
+      
+    </div>
     <div id="analysisOnView" class="mainView"><h1>Analysis On</h1>
-      <div id="analysisBoardArea"></div>
+      <div id="analysisBoardArea" style="position: relative;">
+        <div id="boardElem" style="width: 400px"></div>
+        <div id="idleMsg" style="position: absolute; top: 120px; left: 100px; width: 200px; height: 44px; background-color: #fff; font-size: 36px; text-align: center; display: none;">Idle thread</div>
+        
+      </div>
+      <div id="threadUIArea" style="position: absolute; height: 400px; width: 80px; top: 20px; right: 20px; background-color: #fff;">
+        <ul id="threadsUL">
+          
+        </ul>
+      </div>
       <button data-dispatch="autoAnalysisOff">Turn Off auto-fetching</button>
       <button data-dispatch="autoAnalysisOn">Turn On auto-fetching</button>
 
@@ -257,12 +300,81 @@
 
   }
 
+  SERVER.positionStorage = [];
 
+  SERVER.api = function(request) {
 
+    
 
+    var method = request.method;
+    var data   = request.payload;
 
+    
 
+    if (method === 'batch') {
+      alert("SERVER: Getting batch");
+      //alert("SERVER: Batch request");
 
+      if (SERVER.positionStorage.length === 0) {
+        return {tag: 'noBatchesAvailable', data: 0};
+      }
+
+      var batch = new Batch();
+
+      for (var i = 0; i < 16; i++) {
+
+        console.log("SERVER: ADDING GAME TO BATCH");
+        var pos = SERVER.positionStorage.shift();
+
+        if (pos) {
+          batch.addPosition(pos);
+        }
+      }
+
+      return {tag: 'batchForAnalysis', data: {batch: batch}};
+    }
+
+    else if (method === 'results') {
+
+      // Save resultBatch to database etc.
+      console.log("SERVER: Received result batch: " + data.batch.id);
+      return {tag: 'resultConfirmed', data: 0};
+    }
+
+    else {
+      console.log("SERVER ERROR: Unknown method for request: " + method);
+      return {tag: 'unknownMethod', data: 0};
+    }
+  }
+
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 1, fen: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 2, fen: 'rnbqkbnr/ppp1pppp/3p4/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 3, fen: 'rnbqkbnr/ppp1pppp/3p4/8/4P3/8/PPPPNPPP/RNBQKB1R b KQkq - 1 2'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 4, fen: 'rnbqkb1r/ppp1pppp/3p1n2/8/4P3/8/PPPPNPPP/RNBQKB1R w KQkq - 2 3'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 5, fen: 'rnbqkb1r/ppp1pppp/3p1n2/8/3PP3/8/PPP1NPPP/RNBQKB1R b KQkq d3 0 3'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 6, fen: 'rnbqkb1r/ppp2ppp/3p1n2/4p3/3PP3/8/PPP1NPPP/RNBQKB1R w KQkq e6 0 4'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 7, fen: 'rnbqkb1r/ppp2ppp/3p1n2/4P3/4P3/8/PPP1NPPP/RNBQKB1R b KQkq - 0 4'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 8, fen: 'rnbqkb1r/pppn1ppp/3p4/4P3/4P3/8/PPP1NPPP/RNBQKB1R w KQkq - 1 5'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 9, fen: 'rnbqkb1r/pppn1ppp/3p4/3QP3/4P3/8/PPP1NPPP/RNB1KB1R b KQkq - 2 5'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 10, fen: 'rnbqkb1r/ppp2ppp/1n1p4/3QP3/4P3/8/PPP1NPPP/RNB1KB1R w KQkq - 3 6'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 11, fen: 'rnbqkb1r/ppp2ppp/1n1p4/4P3/4P3/1Q6/PPP1NPPP/RNB1KB1R b KQkq - 4 6'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 12, fen: 'rn1qkb1r/ppp2ppp/1n1pb3/4P3/4P3/1Q6/PPP1NPPP/RNB1KB1R w KQkq - 5 7'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 13, fen: 'rn1qkb1r/ppp2ppp/1n1pb3/4P3/4P3/6Q1/PPP1NPPP/RNB1KB1R b KQkq - 6 7'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 14, fen: 'rn1qkb1r/ppp2ppp/1n2b3/4p3/4P3/6Q1/PPP1NPPP/RNB1KB1R w KQkq - 0 8'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 15, fen: 'rn1qkb1r/ppp2ppp/1n2b3/4Q3/4P3/8/PPP1NPPP/RNB1KB1R b KQkq - 0 8'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 16, fen: 'rn1qk2r/ppp2ppp/1n1bb3/4Q3/4P3/8/PPP1NPPP/RNB1KB1R w KQkq - 1 9'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 17, fen: 'rn1qk2r/ppp2ppp/1n1bb3/8/4P3/2Q5/PPP1NPPP/RNB1KB1R b KQkq - 2 9'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 18, fen: 'rn1q1rk1/ppp2ppp/1n1bb3/8/4P3/2Q5/PPP1NPPP/RNB1KB1R w KQ - 3 10'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 19, fen: 'rn1q1rk1/ppp2ppp/1n1bb3/8/4PP2/2Q5/PPP1N1PP/RNB1KB1R b KQ f3 0 10'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 20, fen: 'r2q1rk1/ppp2ppp/1nnbb3/8/4PP2/2Q5/PPP1N1PP/RNB1KB1R w KQ - 1 11'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 21, fen: 'r2q1rk1/ppp2ppp/1nnbb3/4P3/5P2/2Q5/PPP1N1PP/RNB1KB1R b KQ - 0 11'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 22, fen: 'r2q1rk1/ppp2ppp/1nn1b3/4P3/1b3P2/2Q5/PPP1N1PP/RNB1KB1R w KQ - 1 12'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 23, fen: 'r2q1rk1/ppp2ppp/1nn1b3/4P3/1b3P2/2Q5/PPPBN1PP/RN2KB1R b KQ - 2 12'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 24, fen: 'r2q1rk1/ppp2ppp/1nn1b3/4P3/5P2/2b5/PPPBN1PP/RN2KB1R w KQ - 0 13'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 25, fen: 'r2q1rk1/ppp2ppp/1nn1b3/4P3/5P2/2N5/PPPBN1PP/R3KB1R b KQ - 0 13'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 26, fen: 'r4rk1/pppq1ppp/1nn1b3/4P3/5P2/2N5/PPPBN1PP/R3KB1R w KQ - 1 14'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 27, fen: 'r4rk1/pppq1ppp/1nn1b3/4P3/5P2/2N5/PPPBN1PP/2KR1B1R b - - 2 14'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 28, fen: 'r4rk1/pppq1ppp/1n2b3/4P3/1n3P2/2N5/PPPBN1PP/2KR1B1R w - - 3 15'});
 
 
 
@@ -398,6 +510,7 @@ var StateController = function() {
     }
 
     if (this.transits[this.currentState.name].indexOf(to.name) === -1) {
+      //alert("Transit failed: " + this.currentState.name + " -> " + to.name);
       $(distChess.errorLogger).trigger('notification', ['STATE CONTR: State transit does not exist: ' + this.currentState.name + " -> " + to.name]);
       return false;
     }
@@ -410,6 +523,12 @@ var StateController = function() {
     $(distChess).trigger('stateChange', [oldState.name, to.name]);
     return true;
   }
+
+  $(distChess).on('sleepMode', function() {
+    //alert("Sleep mode turning on");
+    this.doTransit(this.states['analysisEnded']);
+
+  }.bind(this));
 
   $(distChess).on('suggestStateChange', function(e, name) {
 
@@ -471,6 +590,7 @@ var StateController = function() {
     }
 
     this.onStateEnd = function() {
+      alert("Analysis stopping");
       $(distChess).trigger('stopAnalysing');
     }
   }
@@ -551,6 +671,22 @@ var StateController = function() {
 
     }
 
+    this.dispatchThreadClick = function(id) {
+
+      // Inform world we have a thread switch clicked
+
+      // First we need to verify thread for given exists. That information is known only to WorkerController, so send Deferred to him.
+      // He can then either resolve or reject it depending whether thread is there or not
+      var deferred = $.Deferred();
+      deferred.promise().done(function(id, fen) {
+        console.log("PROMISE FULFILLED: " + id + ", " + fen);
+        $(distChess).trigger('threadUIChange', [id, fen]);
+      });
+
+      $(distChess).trigger('verifyThreadExists', [id, deferred]);
+
+    }
+
     this.dispatchLIClick = function(tag) {
 
       // Log LI click or something
@@ -566,20 +702,26 @@ var StateController = function() {
     $mainArea.on('click', function(e) {
 
       console.log(e.target.tagName.toUpperCase());
+      var $target = $(e.target);
 
-      var tag = $(e.target).attr('data-dispatch');
+      var tag = $target.attr('data-dispatch');
 
       if (e.target.tagName.toUpperCase() === 'BUTTON') {
-        this.dispatchButtonClick(tag);
+        return this.dispatchButtonClick(tag);
       }
 
       else if (e.target.tagName.toUpperCase() === 'LI') {
-        // Sidebar, most probably
-        this.dispatchLIClick(tag);
+
+        if ($target.attr('data-liType') === 'threadSwitch') {
+          // Thread switch click
+          return this.dispatchThreadClick($target.attr('data-threadID'));
+        }
+        // Sidebar click, most probably
+        return this.dispatchLIClick(tag);
       }
 
       else {
-        this.dispatchGeneralClick(tag);
+        return this.dispatchGeneralClick(tag);
       }
     }.bind(this));
 
@@ -587,14 +729,15 @@ var StateController = function() {
   }
 
 
-  var BoardViewer = function($elem, chessBoardInstance) {
+  var BoardViewer = function($elem, $idleMsg, chessBoardInstance) {
 
     this.$elem = $elem;
+    this.$idleMsg = $idleMsg;
     this.chessBoard = chessBoardInstance;
 
     this.isActive = true;
 
-    this.currentThread = 0;
+    this.currentThread = 1;
 
     this.enableBoards = function() {
       this.isActive = true;
@@ -605,23 +748,154 @@ var StateController = function() {
     }
 
     this.setThread = function(id) {
-
       this.currentThread = id;
     }
 
     this.updateBoard = function(fen) {
 
+      this.$idleMsg.hide(); // Hide fucking everytime, you know... just in case
+      console.log("UPDATING ANALYSIS BOARD: " + fen);
+      var fenPosition = fen.split(" ")[0];
+      //alert(fenPosition);
+      this.chessBoard.position(fenPosition);
+    }
 
+    this.idleBoard = function() {
+
+      console.log("IDLING THREAD SHOWN IN UI BOARD");
+      this.chessBoard.clear();
+      this.$idleMsg.show();
     }
 
     $(distChess).on('positionAnalysisStarted', function(e, id, fen) {
-      if (id === this.currentThread) {
+      //alert(id + " | " + this.currentThread + " | " + fen);
+      if (parseInt(id) === parseInt(this.currentThread)) {
         // Update UI Board
         this.updateBoard(fen);
       }
 
     }.bind(this));
+
+    $(distChess).on('threadGoesIdle', function(e, id) {
+      if (parseInt(id) === parseInt(this.currentThread)) {
+        // Empty board, show idle message
+        this.idleBoard();
+      }
+
+    }.bind(this));
+
+    $(distChess).on('threadUIChange', function(e, id, fen) {
+      // No need to check anything; this is non-invasive operation simply affecting UI
+      this.setThread(id);
+
+      if (!fen) {
+        this.idleBoard();
+      }
+      else {
+        this.updateBoard(fen);
+      }
+      
+    }.bind(this))
   } 
+
+  var ThreadUI = function($UL) {
+
+    this.$elem = $UL;
+
+    this.getHTMLForElement = function(id) {
+
+      return '<li class="threadUI suspended" data-dispatch="changeThreadInUI" data-liType="threadSwitch" data-threadID="' + id + '">' + id + '</li>';
+    }
+
+    // Consider abstracting loop out of the next three (or at least two) functions
+    // On the other hand, whats the point... it just obfuscates reading code
+    this.flashToIdle = function(id) {
+
+      var lis = this.$elem.find('li');
+
+      $.each(lis, function(index, li) {
+        li = $(li);
+
+        if (li.attr('data-threadID') == id) {
+          li.removeClass('running').addClass('suspended');
+          return false; // Breaks out of loop
+        }
+      });
+
+    }
+
+    this.flashToRunning = function(id) {
+
+      var lis = this.$elem.find('li');
+
+      $.each(lis, function(index, li) {
+        li = $(li);
+
+        if (li.attr('data-threadID') == id) {
+          li.removeClass('suspended').addClass('running');
+          return false; // Breaks out of loop
+        }
+      });
+
+    }
+
+    this.updateThreadLights = function(id) {
+
+      console.log("THREADS UI: Updating thread lights. Lid is: " + id);
+
+      var lis = this.$elem.find('li');
+
+      $.each(lis, function(index, li) {
+        console.log(li);
+        li = $(li);
+        if (li.attr('data-threadID') == id) {
+          
+          console.log("FOUND THREAD UI");
+          li.removeClass( "dimThread" ).addClass( "lidThread" );
+        }
+        else {
+          li.removeClass( "lidThread" ).addClass( "dimThread" );
+        }
+      });
+
+      console.log("POIS THREAD LIGHTS");
+
+    }
+
+    this.initThreadUI = function(threadIDs) {
+
+      // threadIDs = [1,2,3,4,5,...];
+
+      var html = '';
+
+      for (var i = threadIDs.length-1; i >= 0; i--) {
+        var id = threadIDs[i];
+        html += this.getHTMLForElement(id);
+      };
+
+      console.log("THREAD UI ELEMENTS INITIALIZED");
+      this.$elem.append(html);
+
+    }
+
+    $(distChess).on('threadsInitialized', function(e, ids) {
+      this.initThreadUI(ids);
+    }.bind(this));
+
+    $(distChess).on('threadUIChange', function(e, id, fen) {
+      this.updateThreadLights(id);
+
+    }.bind(this));
+
+    $(distChess).on('threadGoesIdle', function(e, id) {
+      this.flashToIdle(id);
+    }.bind(this));
+
+    $(distChess).on('positionAnalysisStarted', function(e, id) {
+      this.flashToRunning(id);
+    }.bind(this));
+
+  }
 
 
 
@@ -639,10 +913,13 @@ var StateController = function() {
 
 
     // Later, move all constructors into constructor namespace inside distChess!
+
+    // Later, namespace all jQuery element searches under "appArea"!
     distChess.errorLogger = new ErrorLogger();
     distChess.generalLogger = new GeneralLogger();
     distChess.buildLogger = new BuildLogger();
-    distChess.loggerUI = new LoggerUI({error: distChess.errorLogger, general: distChess.generalLogger, build: distChess.buildLogger}, $('#logView'));
+    distChess.workerLogger = new WorkerLogger();
+    distChess.loggerUI = new LoggerUI({error: distChess.errorLogger, general: distChess.generalLogger, build: distChess.buildLogger, worker: distChess.workerLogger}, $('#logView'));
 
     distChess.net = new Net({'testing': true});
 
@@ -672,18 +949,35 @@ var StateController = function() {
     distChess.stateController.addTwoWayTransit(askUserState, analysisState);
     distChess.stateController.addTwoWayTransit(analysisState, analysisSuspendedState);
     distChess.stateController.addOneWayTransit(askUserState, analysisEndedState);
-    distChess.stateController.addOneWayTransit(analysisEndedState, analysisState);
+    distChess.stateController.addTwoWayTransit(analysisEndedState, analysisState);
 
     // Set initial state
     distChess.stateController.initToState(analysisEndedState);
 
-    distChess.positionController = new BatchController();
-    distChess.workerController = new WorkerController(4, distChess.positionController);
+    // UI element containers
+    distChess.boardViewer = new BoardViewer($("#analysisBoardArea"), $('#idleMsg'), new ChessBoard('boardElem', 'start'));
+    distChess.threadUI = new ThreadUI($("#threadsUL"));
+
+    // Main control flow handling 
+    // PositionController keeps list of positions (batch = set of positions)
+    // WorkerController polls PositionController whenever worker thread needs new job
+    distChess.positionController = new BatchController(distChess.net);
+    distChess.workerController = new WorkerController(2, distChess.positionController);
     distChess.workerController.initWorkers();
 
-    distChess.boardViewer = new BoardViewer($("#analysisBoardArea"));
 
     distChess.listener = new GeneralButtonListener($('#appArea'));
+
+/*    var batch = new Batch(1);
+    batch.addPosition({game: 1782382, lastMove: 'e5', lastMoveNumber: 12, fen: '8/1k6/4N2P/2q5/4K3/p7/8/7N w - - 0 1'});
+    batch.addPosition({game: 1782383, lastMove: 'Nf6', lastMoveNumber: 7, fen: '8/1k6/4N2P/2q5/4K3/p7/8/8 w - - 0 1'});
+    batch.addPosition({game: 1782384, lastMove: 'e6', lastMoveNumber: 23, fen: '8/1k6/4N2P/2q5/4K3/p7/8/8 w - - 0 1'});
+    batch.addPosition({game: 1782385, lastMove: 'e5', lastMoveNumber: 17, fen: '8/1k6/4N2P/2q5/4K3/p7/8/8 b - - 0 1'});
+    batch.addPosition({game: 1782386, lastMove: 'f5', lastMoveNumber: 52, fen: '8/1k6/4N2P/2q5/4K3/p7/8/8 b - - 0 1'});
+
+    distChess.positionController.addBatch(batch);*/
+
+
 
 
     //distChess.workerController.turnAnalysisOn();
@@ -733,17 +1027,50 @@ var LoggerUI = function(logChannels, $elem) {
 
     if (this.currentChannel) {
       var logs = this.currentChannel.getLogs();
-      var html = 'Loop over logs here. Channel is: ' + this.currentChannel.name;
+      var html = '<ul>';
+
+      for (var i = logs.length - 1; i >= 0; i--) {
+        html += '<li>' + logs[i].data + '</li>';
+      };
+
+      html += '</ul>';
 
       this.$elem.empty().append(html);
     }
   }
+
+  this.currentChannel = this.logChannels.worker;
+
+  $(distChess).on('viewChange', function(e, viewName) {
+    if (viewName === 'logView') {
+      //alert("Updating log UI");
+      this.updateUI();
+    }
+  }.bind(this));
 }
-// These three loggers should probably use same prototype
+// These x loggers should probably use same prototype
 var BuildLogger = function() {
 
   this.notifications = [];
   this.name = 'build';
+
+  // Prototype methods
+  this.log = function(msg, data) {
+    this.notifications.push({msg: msg, type: 'notification', data: data.toString(), timestamp: Date.now()});
+  }
+
+  this.getLogs = function() {
+    return this.notifications.slice(0);
+  }
+
+  // Instance method
+  $(this).on('notification', this.log.bind(this));
+}
+
+var WorkerLogger = function() {
+
+  this.notifications = [];
+  this.name = 'worker';
 
   // Prototype methods
   this.log = function(msg, data) {
@@ -800,17 +1127,52 @@ var Batch = function(id) {
   this.pendingPositions = [];
   this.donePositions = [];
 
-  this.hasOpenPositions = function() {
+  this.numOfOpenPositions = function() {
+    return this.openPositions.length;
+  }
 
+  this.numOfPendingPositions = function() {
+    return this.pendingPositions.length;
+  }
+
+  this.numOfDonePositions = function() {
+    return this.donePositions.length;
+  }
+
+  this.hasOpenPositions = function() {
     return this.openPositions.length > 0;
+  }
+
+  this.isReadyForReturn = function() {
+    return !this.hasOpenPositions() && this.numOfPendingPositions === 0;
   }
 
   this.getPosition = function() {
 
+    if (this.openPositions.length === 0) {
+      return false;
+    }
+
     var pos = this.openPositions.shift();
+    pos.batchID = this.id; // Decorate so position knows where to return
     this.pendingPositions.push(pos);
 
     return pos;
+  }
+
+  this.confirmPosition = function(pos) {
+
+    var i = this.pendingPositions.indexOf(pos);
+
+    if (i === -1) {
+      console.log("BATCH ERROR: Evaluated position not found in pending positions: " + pos);
+      return false;
+    }
+    console.log("Removing from pending positions...");
+    this.pendingPositions.splice(i, 1);
+    this.donePositions.push(pos);
+    return true;
+
   }
 
   this.addPosition = function(pos) {
@@ -822,7 +1184,9 @@ var Batch = function(id) {
 
 
 // Note - Batch Controller does not need to have link to Worker Controller as Worker Contr. asks for positions independently!
-var BatchController = function() {
+var BatchController = function(net) {
+
+  this.net = net;
 
   this.batchQueue = [];
 
@@ -835,6 +1199,9 @@ var BatchController = function() {
     // Stats -module and Net-module at least should listen for this
     $(distChess).trigger('batchIsCompleted', [batch]);
 
+    // Actually, lets push it straight to net
+    this.net.sendResults(batch);
+
     if (this.batchQueue.length === 0) {
       // We need more stuff for workers to analyse, so request from server
       // Wait a bit first so that user can here stop analysing
@@ -844,15 +1211,32 @@ var BatchController = function() {
     }
   }
 
+  this.getBatchByID = function(id) {
+    for (var i = this.batchQueue.length - 1; i >= 0; i--) {
+      if (this.batchQueue[i].id === id) return this.batchQueue[i];
+    };
+    return false;
+  }
+
+  this.validateBatch = function(batch) {
+    // Lets say its valid. For now.
+    return true;
+  }
+
   this.getPositionForAnalysis = function() {
+
 
     var currentBatch = this.batchQueue[0];
 
     if (!currentBatch) {
+      $(distChess).trigger('openPositionsLeft', [0]);
       // No batches anymore -> should go fetch new ones from server
       // Access server here
-      return 0;
+      this.net.requestBatch(); // Server responds one day, hopefully. 
+      return 0; // For now we just fucking bail and inform Workers synchronously that there is no batches available.
     }
+
+    $(distChess).trigger('openPositionsLeft', [currentBatch.numOfOpenPositions()]);
 
     if (currentBatch.hasOpenPositions()) {
       var pos = currentBatch.getPosition();
@@ -862,7 +1246,9 @@ var BatchController = function() {
 
     else {
       // BATCH IS DONE FOR GOOD!
-
+      console.log("_______________________________");
+      console.log("BATCH IS DONE -> REMOVING BATCH");
+      console.log("_______________________________");
       this.batchQueue.shift(); // Same batch as currentBatch, so no need to catch the shifted element
       // Async calling so that Worker Controller can get its return value first
       setTimeout(function() {
@@ -873,6 +1259,35 @@ var BatchController = function() {
       return 0;
     }
   }
+
+  this.processArrivingEvaluation = function(resultPosition) {
+    var batchID = resultPosition.batchID;
+    var batch = this.getBatchByID(batchID);
+
+    if (batch) {
+      batch.confirmPosition(resultPosition);
+    }
+    else {
+      console.log("BATCH ERROR: Evaluated position contained batch ID that is not found");
+    }
+
+  }
+
+  $(distChess).on('batchReceivedFromServer', function(e, data) {
+
+    if (this.validateBatch(data.batch)) {
+      console.log("BATCH CONTR: Adding received batch to queue");
+      return this.addBatch(data.batch);
+    }
+    console.log("BATCH CONTR: Batch received but its corrupted. Bailing.");
+  }.bind(this));
+
+  $(distChess).on('positionEvaluated', function(e, resultPosition) {
+    console.log("BATCH CONTR: Done position arrived");
+    this.processArrivingEvaluation(resultPosition);
+
+
+  }.bind(this));
 
 
 }
@@ -905,8 +1320,10 @@ var WorkerController = function(numOfWorkers, positionController) {
 
   this.checkForBestMove = function(msg) {
 
-    if (msg.indexOf('bestmove') !== -1) {
-      return true;
+    var parts = msg.split(' ');
+
+    if (msg.indexOf('bestmove') === 0) {
+      return parts[1];
     }
 
     return false;
@@ -918,14 +1335,27 @@ var WorkerController = function(numOfWorkers, positionController) {
     var hasBestMove = this.checkForBestMove(e.data);
 
     // If bestmove was present, analysis for the position is done. Best evaluation is already saved into position object.
-    if (hasBestMove) {
-
+    if (hasBestMove !== false) {
+      
       console.log(e.data);
+      
 
       // Worker is done with the position
-      var resultPosition = this.workers[id].currentPosition;
-      this.workers[id].currentPosition = 0;
-      this.workers[id].currentCount++;
+      var worker = this.workers[id];
+      var resultPosition = worker.currentPosition;
+
+      //Decorate result position
+      resultPosition.bestMove = hasBestMove;
+
+      // Timing is recorded
+      var duration = Date.now() - worker.latestStart;
+      resultPosition.duration = duration;
+      worker.latestDuration   = duration;
+
+      $(distChess.workerLogger).trigger('notification', ["Worker #" + id + ": " + (Math.floor(duration/100)) / 10 + " secs"]);
+
+      worker.currentPosition = 0;
+      worker.currentCount++;
       //resultPosition.evaluation = evaluation;
 
       console.log("Best evaluation: " + resultPosition.evaluation);
@@ -934,6 +1364,7 @@ var WorkerController = function(numOfWorkers, positionController) {
       // Notify the world of this joyous event
       $(distChess.generalLogger).trigger('notification', ['WORKER CONTR: Position done from worker: ' + id]);
       $(distChess).trigger('positionEvaluated', [resultPosition]);
+      $(distChess).trigger('threadGoesIdle', [id]);
 
 
 
@@ -997,7 +1428,7 @@ var WorkerController = function(numOfWorkers, positionController) {
   this.turnAnalysisOn = function() {
     // Analysis can simply be stopped by stopping interval - then Worker Controller does not request new positions!
     if (!this.checkerIntervalHandle) {
-      this.checkerIntervalHandle = setInterval(this.intervalFunction.bind(this), 1200);
+      this.checkerIntervalHandle = setInterval(this.intervalFunction.bind(this), 200);
     }
   }
 
@@ -1014,6 +1445,8 @@ var WorkerController = function(numOfWorkers, positionController) {
 
     var i = this.num;
     var self = this;
+
+    var ids = [];
 
     while (i > 0) {
       var id = i;
@@ -1040,10 +1473,14 @@ var WorkerController = function(numOfWorkers, positionController) {
         currentCount: 0
       }
 
+      ids.push(id);
+
       //this.workersCurrentPositions[id] = 0;
       //this.workerDoneCounters[id] = 0;
       
     }
+    // Broadcast to the world all thread ids
+    $(distChess).trigger('threadsInitialized', [ids]);
   }
 
   this.startWorking = function(workerWrapper, position) {
@@ -1053,12 +1490,13 @@ var WorkerController = function(numOfWorkers, positionController) {
     }
 
     workerWrapper.currentPosition = position;
+    workerWrapper.latestStart = Date.now();
     //this.workersCurrentPositions[workerWrapper.id] = position;
     var fen = position.fen;
     console.log("SENDING MSGS TO WORKER: " + workerWrapper.id + " with position: " + position.fen);
     workerWrapper.worker.postMessage('ucinewgame');
     workerWrapper.worker.postMessage('position fen ' + fen);
-    workerWrapper.worker.postMessage('go depth 18');
+    workerWrapper.worker.postMessage('go depth 14');
 
     console.log("Worker" + workerWrapper.id + " started working");
     $(distChess).trigger('positionAnalysisStarted', [workerWrapper.id, fen]);
@@ -1067,6 +1505,18 @@ var WorkerController = function(numOfWorkers, positionController) {
 
   }
 
+  $(distChess).on('startAnalysing', this.turnAnalysisOn.bind(this));
+  $(distChess).on('stopAnalysing', this.turnAnalysisOff.bind(this));
+
+  $(distChess).on('verifyThreadExists', function(e, id, deferred) {
+    if (this.workers.hasOwnProperty(id)) {
+      return deferred.resolve(id, this.workers[id].currentPosition.fen);
+    }
+
+    return deferred.reject();
+
+  }.bind(this));
+
 
 }
 
@@ -1074,10 +1524,36 @@ var WorkerController = function(numOfWorkers, positionController) {
 
 var Net = function(config) {
 
+  this.batchRequestPending = false;
+  this.batchRequestTimeout = 0;
+
     this.config = config || {};
 
     this.requestBatch = function() {
-      this.makeRequest('batch');
+      if (!this.batchRequestPending) {
+        this.batchRequestPending = true;
+        this.makeRequest('batch', {});
+      
+
+        setTimeout(function() {
+          // Something happened, lets allow resending
+          this.batchRequestPending = false;
+          this.batchRequestTimeout = 0;
+          $(distChess).trigger('serverConnectionFailed');
+        }.bind(this), 8000); // If we don't hear back in 8 seconds, we drop the request and allow resending
+
+      }
+      
+    }
+
+    this.resetBatchRequestWaiter = function() {
+
+      this.batchRequestPending = false;
+      if (this.batchRequestTimeout !== 0) {
+        clearTimeout(this.batchRequestTimeout);
+      }
+      this.batchRequestTimeout = 0;
+
     }
 
     this.sendResults = function(resultBatch) {
@@ -1086,14 +1562,17 @@ var Net = function(config) {
 
     this.makeRequest = function(method, payload) {
 
+      console.log("NET: Sending out request: " + method);
+
       if (this.config.testing) {
         // FOR TESTING
         // Simulating volatile network connection by using random timeout value
-        var timeout = Math.floor(Math.random() * 2000);
+        var timeout = Math.floor(Math.random() * 500) + 50;
 
         setTimeout(function() {
-          SERVER.api({method: method, payload: payload});
-        }, timeout);
+          var response = SERVER.api({method: method, payload: payload});
+          this.receiveFromServer(response.tag, response.data);
+        }.bind(this), timeout);
 
         // Logging for debugging
         $(distChess.generalLogger).trigger('notification', ['NETWORK: Request sent', method]);
@@ -1111,6 +1590,9 @@ var Net = function(config) {
 
     this.receiveFromServer = function(type, data) {
 
+      console.log("RECEIVED FROM SERVER!!!!!!!!!!!!!!!!!!!!!!!");
+      console.log(data);
+
       if (type === 'resultConfirmed') {
         // Can - for example - show earned points which are brough in data
         $(distChess).trigger('serverConfirmedResults');
@@ -1120,8 +1602,15 @@ var Net = function(config) {
         $(distChess).trigger('serverDeniedResults');
       }
 
-      else if (type === 'gamesForAnalysis') {
-        $(distChess).trigger('gamesReceivedFromServer', [data]);
+      else if (type === 'batchForAnalysis') {
+        this.resetBatchRequestWaiter();
+        $(distChess).trigger('batchReceivedFromServer', [data]);
+      }
+
+      else if (type === 'noBatchesAvailable') {
+        this.resetBatchRequestWaiter();
+        $(distChess).trigger('sleepMode');
+        //alert("Batches out");
       }
 
       else if (type === 'noGamesAvailable') {
