@@ -1,0 +1,826 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Distributed Chess Analysis Project</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font: 13px Helvetica, Arial; }
+
+      .mainView {
+        display: none;
+      }
+
+    </style>
+    <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+    <script src="js/chessboard-0.3.0.min.js"></script>
+    <script src="chess.js"></script>
+    <script src="stockfish.js"></script>
+  </head>
+  <body>
+
+  <div id="askUserView" class="mainView"><h1>Ask user</h1></div>
+  <div id="analysisOnView" class="mainView"><h1>Analysis On</h1></div>
+  <div id="logView" class="mainView"><h1>Log</h1></div>
+  <div id="statsView" class="mainView"><h1>Stats</h1></div>
+  <div id="endedView" class="mainView"><h1>Analysis has ended</h1></div>
+
+
+
+  <script>
+  var SERVER = {};
+
+  SERVER.constructors = {};
+  SERVER.keySet = 'qwertyuiopasdfghjklzxcvbnm1234567890';
+
+  SERVER.constructors.Game = function(id, info, positions) {
+
+    this.createdAt = Date.now();
+
+    this.id = id;
+    this.info = info;
+    this.openPositions = positions;
+    this.pendingPositions = {};
+    this.donePositions = [];
+
+    this.hasOpenPositions = function() {
+
+      return this.openPositions.length > 0;
+    }
+
+    this.isReady = function() {
+
+      return !this.hasOpenPositions() && Object.keys(this.pendingPositions).length === 0;
+    }
+
+    this.createKeyForOutgoingPosition = function() {
+
+      // Creating analysis key for position
+      var l = SERVER.keySet.length-1;
+      var key = '';
+
+      for (var i=0; i<6; i++) {
+        key += SERVER.keySet[Math.floor(Math.random()*l)];
+      }
+
+      if (this.pendingPositions.hasOwnProperty(key)) {
+        // Already exists, create new one by recursing
+        return this.createKeyForOutgoingPosition();
+      }
+
+      return key;
+    }
+
+    this.getPositionForAnalysis = function() {
+
+      if (this.openPositions.length > 0) {
+        var pos = this.openPositions.pop();
+        var key = this.createKeyForOutgoingPosition();
+
+        pos.analysisKey = key;
+        pos.gameID = this.id;
+        this.pendingPositions[key] = pos;
+
+        return pos;
+      }
+
+    }
+
+    this.receiveAnalysisForPosition = function(analysis) {
+
+      if (!this.pendingPositions.hasOwnProperty(analysis.analysisKey)) {
+        return false;
+      }
+
+      delete this.pendingPositions[analysis.analysisKey];
+      this.donePositions.push(analysis.position);
+
+    }
+
+
+  }
+
+  SERVER.constructors.Cleaner = function(harvest) {
+
+    this.harvest = harvest;
+
+    this.handle = null;
+
+    this.turnOn = function() {
+      if (!this.handle) {
+        this.handle = setInterval(this.oneSweep.bind(this), 5000);
+      }
+      
+    }
+
+    this.turnOff = function() {
+      clearInterval(this.handle);
+      this.handle = null;
+    }
+
+    this.oneSweep = function() {
+
+      var games = this.harvest.games;
+      var game;
+
+      var readyArr = [];
+      var toBeDeleted = [];
+
+      for (key in games) {
+        game = games[key];
+
+        if (game.isReady()) {
+          toBeDeleted.push(key);
+          readyArr.push(game);
+        }
+      }
+
+      for (var i=0, l=toBeDeleted.length; i<l; i++) {
+        delete this.harvest.games[toBeDeleted[i]];
+      }
+
+      SERVER.resultBroadcaster.receiveReadyGames(readyArr);
+
+
+    }
+  }
+
+  SERVER.constructors.Harvest = function() {
+
+    this.games = {};
+    this.runningID = 1;
+
+    this.createGame = function(info, positions) {
+
+      var gameID = this.runningID;
+      this.runningID++;
+
+      var game = new SERVER.constructors.Game(gameID, info, positions);
+      this.games[gameID] = game;
+
+    }
+
+
+    this.getPosition = function() {
+
+      var position = 0;
+
+      for (key in this.games) {
+        if (this.games[key].hasOpenPositions()) {
+          position = this.games[key].getPositionForAnalysis();
+          break;
+        }
+      }
+
+      return position;
+    }
+  }
+
+  SERVER.constructors.GameReception = function(chessIns) {
+
+    this.chessJS = chessIns;
+
+    this.newGameReceive = function(pgn, info) {
+
+      if (!this.chessJS.load_pgn(pgn)) {
+        return false;
+      }
+      var positions = this.chopToPositions();
+
+      SERVER.Harvest.createGame(info, positions);
+    }
+
+    this.chopToPositions = function() {
+
+      var positions = [];
+      var num = 1;
+
+      if (this.chessJS) {
+        positions.push = this.chessJS.fen();
+        while(this.chessJS.undo()) {
+          positions.push({num: num, pos: this.chessJS.fen()});
+          num++;
+        }
+      }
+
+      return positions;
+    }
+
+
+
+
+
+
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  ////////////////////////////
+  /// SERVER SIDE UP
+
+  /// CLIENT SIDE DOWN
+  ////////////////////////////
+
+  /// VIEWS
+
+  var ViewController = function(arrayOfViews) {
+
+    // array elem = {name: 'name', elem: jQuery_obj};
+
+    this.arrayOfViews = arrayOfViews || [];
+
+    this.doesExists = function(viewName) {
+
+      for (var i = this.arrayOfViews.length - 1; i >= 0; i--) {
+        if (this.arrayOfViews[i].name === viewName) return true;
+      }
+      $(distChess.errorLogger).trigger('notification', ['VIEW CONTR.: View not found by name: ' + viewName]);
+      return false;
+
+    }
+
+    this.showThisHideOther = function(viewName) {
+
+      for (var i = this.arrayOfViews.length - 1; i >= 0; i--) {
+        if (this.arrayOfViews[i].name === viewName) this.arrayOfViews[i].elem.show();
+        else this.arrayOfViews[i].elem.hide();  
+      }
+      $(distChess.generalLogger).trigger('notification', ['VIEW CONTR: View changed to: ' + viewName]);
+
+    }
+
+    this.changeView = function(name) {
+
+      if (this.doesExists(name)) {
+        this.showThisHideOther(name);
+        return true;
+      }
+      return false;
+    }
+
+    // State change is triggered internally whenever application goes into new logical state.
+    $(distChess).on('stateChange', function(e, stateName) {
+      // State change forces state's main view into screen whether user wants so or not!
+      this.changeView(stateName);
+    }.bind(this));
+
+    // View change is triggered whenever user clicks on side bar buttons
+    $(distChess).on('viewChange', function(e, viewName) {
+      this.changeView(viewName);
+    }.bind(this));
+
+  }
+
+
+
+
+  /// STATES
+
+
+var StateController = function() {
+
+  this.states = {};
+  this.transits = {};
+
+  this.currentState = 0;
+
+  this.initToState = function(state) {
+    this.currentState = state;
+    $(distChess).trigger('stateChange', [0, this.currentState.name]);
+  }
+
+  this.addState = function(name, state) {
+    this.states[name] = state;
+    $(distChess.buildLogger).trigger('notification', ['STATE CONTR: State added: ' + name]);
+  }
+
+  this.addOneWayTransit = function(from, to) {
+
+    // Initialize if not present yet
+    if (!this.transits.hasOwnProperty(from.name)) {
+      this.transits[from.name] = [];
+    }
+    // Add if does not exist already
+    if (this.transits[from.name].indexOf(to.name) === -1) {
+      this.transits[from.name].push(to.name);
+      $(distChess.buildLogger).trigger('notification', ['STATE CONTR: Transit added: ' + from.name + " -> " + to.name]);
+    }
+    return true;
+
+  }
+
+  this.addTwoWayTransit = function(s1, s2) {
+
+    this.addOneWayTransit(s1, s2);
+    this.addOneWayTransit(s2, s1);
+    return true;
+  }
+
+  this.doTransit = function(to) {
+
+    // Argument must be valid and currentState must be inited before
+    if (!to || !to.hasOwnProperty('name') || !this.currentState) {
+      $(distChess.errorLogger).trigger('notification', ['STATE CONTR: State transit failed']);
+      return false;
+    }
+
+    if (this.transits[this.currentState.name].indexOf(to.name) === -1) {
+      $(distChess.errorLogger).trigger('notification', ['STATE CONTR: State transit does not exist: ' + this.currentState.name + " -> " + to.name]);
+      return false;
+    }
+    var oldState = this.currentState;
+    this.currentState = to;
+    oldState.onStateEnd();
+    to.onStateStart();
+
+    $(distChess).trigger('stateChange', [oldState.name, to.name]);
+    return true;
+  }
+
+  $(distChess).on('suggestStateChange', function(e, name) {
+
+    if (this.states.hasOwnProperty(name)) {
+      this.doTransit(this.states[name]);
+      return true;
+    }
+
+    $(distChess.errorLogger).trigger('notification', ['STATE CONTR: State change suggestion ignored - no state for name: ' + name]);
+    return false;
+
+  }.bind(this));
+
+}
+
+  var AnalysisOnState = function() {
+
+    this.name = 'analysisOn';
+
+    this.onStateStart = function() {
+      $(distChess).trigger('startAnalysing');
+    }
+
+    this.onStateEnd = function() {
+      $(distChess).trigger('stopAnalysing');
+    }
+  }
+
+  var AskState = function() {
+
+    this.intervalHandle = 0;
+    this.name = 'askUser';
+
+    // Overriding the inherited (prototype's corresponding method)
+    this.onStateStart = function() {
+
+      var counter = 5;
+
+      this.intervalHandle = setInterval(function() {
+        if (counter <= 0) {
+          clearInterval(this.intervalHandle);
+          this.intervalHandle = 0;
+          $(distChess).trigger('suggestStateChange', ['analysisOn']);
+        }
+        $(distChess).trigger('askUserCounterUpdate', [counter--]);
+
+      }.bind(this), 1000);
+
+
+    }
+
+    this.onStateEnd = function() {
+
+      if (this.intervalHandle) {
+        clearInterval(this.intervalHandle);
+        this.intervalHandle = 0;
+      }
+    }
+  }
+
+
+
+
+
+
+
+
+
+
+  /// BUILDING THE APP
+
+  var distChess = {};
+
+  // Later, move all constructors into constructor namespace inside distChess!
+  distChess.errorLogger = new ErrorLogger();
+  distChess.generalLogger = new GeneralLogger();
+  distChess.buildLogger = new BuildLogger();
+  distChess.loggerUI = new LoggerUI({error: distChess.errorLogger, general: distChess.generalLogger, build: distChess.buildLogger}, $('#logView'));
+
+  distChess.net = new Net({'testing': true});
+
+  distChess.stateController = new StateController();
+  distChess.viewController = new ViewController([
+    {name: 'askUser', elem: $('#askUserView')},
+    {name: 'analysisOn', elem: $('#analysisOnView')},
+    {name: 'logView', elem: $('#logView')},
+    {name: 'statsView', elem: $('#statsView')},
+    {name: 'endedView', elem: $('#endedView')}
+  ]);
+
+  var askUserState = new AskState();
+  var analysisState = new AnalysisOnState();
+
+  distChess.stateController.addState(askUserState);
+  distChess.stateController.addState(analysisState);
+
+  distChess.addTwoWayTransit(askUserState, analysisState);
+
+
+  });
+
+  // BUILDING ENDS
+
+
+
+
+
+
+
+
+
+
+
+
+
+var LoggerUI = function(logChannels, $elem) {
+
+  this.logChannels = logChannels || {};
+  this.$elem = $elem;
+
+  this.currentChannel = 0;
+
+  this.switchChannel = function(channel) {
+
+    if (this.logChannels.hasOwnProperty(channel)) {
+      this.currentChannel = logChannels[channel];
+      $(distChess.generalLogger).trigger('notification', ['Log channel switched', channel]);
+    }
+    
+  }
+
+  this.updateUI = function() {
+
+    if (this.currentChannel) {
+      var logs = this.currentChannel.getLogs();
+      var html = 'Loop over logs here. Channel is: ' + this.currentChannel.name;
+
+      this.$elem.empty().append(html);
+    }
+  }
+}
+// These three loggers should probably use same prototype
+var BuildLogger = function() {
+
+  this.notifications = [];
+  this.name = 'build';
+
+  // Prototype methods
+  this.log = function(msg, data) {
+    this.notifications.push({msg: msg, type: 'notification', data: data.toString(), timestamp: Date.now()});
+  }
+
+  this.getLogs = function() {
+    return this.notifications.slice(0);
+  }
+
+  // Instance method
+  $(this).on('notification', this.log.bind(this));
+}
+
+var GeneralLogger = function() {
+
+  this.notifications = [];
+  this.name = 'general';
+
+  // Prototype methods
+  this.log = function(msg, data) {
+    this.notifications.push({msg: msg, type: 'notification', data: data.toString(), timestamp: Date.now()});
+  }
+
+  this.getLogs = function() {
+    return this.notifications.slice(0);
+  }
+
+  // Instance method
+  $(this).on('notification', this.log.bind(this));
+}
+
+var ErrorLogger = function() {
+
+  this.notifications = [];
+  this.name = 'error';
+
+  this.log = function(msg, data) {
+    this.notifications.push({msg: msg, type: 'error', data: data.toString(), timestamp: Date.now()});
+  }
+
+  this.getLogs = function() {
+    return this.notifications.slice(0);
+  }
+
+  // Instance method
+  $(this).on('notification', this.log.bind(this));
+}
+
+
+// Note - Batch Controller does not need to have link to Worker Controller as Worker Contr. asks for positions independently!
+var BatchController = function() {
+
+  this.batchQueue = [];
+
+  this.addBatch = function(batch) {
+    this.batchQueue.push(batch);
+  }
+
+  this.batchIsDone = function(batch) {
+
+    // Stats -module and Net-module at least should listen for this
+    $(distChess).trigger('batchIsCompleted', [batch]);
+
+    if (this.batchQueue.length === 0) {
+      // We need more stuff for workers to analyse, so request from server
+      // Wait a bit first so that user can here stop analysing
+      setTimeout(function() {
+        $(distChess).trigger('suggestStateChange', ['askUserForAdditionalAnalysing']);
+      }, 0);
+    }
+  }
+
+  this.getPosition = function() {
+
+    var currentBatch = this.batchQueue[0];
+
+    if (currentBatch.hasOpenPositions()) {
+      var pos = currentBatch.getPosition();
+      $(distChess.generalLogger).trigger('notification', ['POS. CONTROLLER: Handing out position', pos.id]);
+      return pos;
+    }
+
+    else {
+      // BATCH IS DONE FOR GOOD!
+
+      this.batchQueue.shift(); // Same batch as currentBatch, so no need to catch the shifted element
+      // Async calling so that Worker Controller can get its return value first
+      setTimeout(function() {
+        this.batchIsDone(currentBatch);
+      }.bind(this), 0);
+
+      // Return 0 to indicated that nothing can be done for now
+      return 0;
+    }
+  }
+
+
+}
+
+var WorkerController = function(numOfWorkers, positionController) {
+
+  this.positionController = positionController;
+  this.num = numOfWorkers || 1;
+
+  this.workerDoneCounters = {};
+
+  this.workers = [];
+  this.workersCurrentPositions = {};
+
+  this.checkerIntervalHandle = 0;
+
+  this.checkAndAddEvaluation = function(workerID, msg) {
+
+    var arr = msg.split(" ");
+    var idx = arr.indexOf('score');
+
+    // Score should be in second place in the splitted array
+    if (idx === 1) {
+      // Score found, update current evaluation of position
+      this.workersCurrentPositions[workerID].evaluation = arr[3];
+      return true;
+    }
+    // Msg did not contain score, dump it
+    return false;
+  }
+
+  this.checkForBestMove = function(msg) {
+
+    if (msg.indexOf('bestmove') !== -1) {
+      return false;
+    }
+
+    return true;
+  }
+
+  this.msgFromWorker = function(id, worker, e) {
+
+    console.log("MSG FROM WORKER: " + id);
+    console.log(e.data)
+
+    var addLatestEvaluation = this.checkAndAddEvaluation(id, e.data);
+    var hasBestMove = this.checkForBestMove(e.data);
+
+    // If bestmove was present, analysis for the position is done. Best evaluation is already saved into position object.
+    if (hasBestMove) {
+      // Worker is done with the position
+      var resultPosition = this.workersCurrentPositions[id];
+      this.workersCurrentPositions[id] = 0;
+      ++this.workerDoneCounters[i];
+      //resultPosition.evaluation = evaluation;
+
+      // Notify the world of this joyous event
+      $(distChess.generalLogger).trigger('notification', ['WORKER CONTR: Position done from worker: ' + id]);
+      $(distChess).trigger('positionEvaluated', [resultPosition]);
+
+
+
+    }
+
+
+  }
+
+  this.requestPosition = function() {
+
+    var pos = this.positionController.getNewPosition();
+
+    if (pos) {
+      this.newPositionArrived(pos);
+    }
+
+  }
+
+  this.getIdleWorker= function() {
+
+    for (var i = this.workers.length - 1; i >= 0; i--) {
+      if (this.workers[i].currentPosition === 0) return this.workers[i];
+    }
+    // All bees are busy, nothing to return
+    return 0;
+  }
+
+  this.initWorkers = function() {
+
+    var i = this.num;
+    var self = this;
+
+    while (i > 0) {
+      var w = new Worker('stockfish.js');
+      //w.postMessage({tag: 'init', id: i});
+
+      // Must escape closure that takes i by reference, we need copy of i
+      (function(id, worker) {
+        worker.addEventListener('message', function(e) {
+          self.msgFromWorker(id, worker, e);
+        });
+
+      })(i, w);
+
+
+      this.workers.push({
+        id: i,
+        worker: w,
+        currentPosition: 0
+      });
+
+      this.workersCurrentPositions[i] = 0;
+      this.workerDoneCounters[i] = 0;
+      
+    }
+    // Analysis can simply be stopped by stopping interval - then Worker Controller does not request new positions!
+    this.checkerIntervalHandle = setInterval(function() {
+      var idle = this.getIdleWorker();
+
+      if (idle !== 0) {
+
+        // We need position for this bumblebee
+        var pos = this.positionController.getPositionForAnalysis();
+        if (!pos) {
+          // Position was not available which means whole client-side is devoid of anything to analyze. 
+          // However, thats not our (workers) problem - so lets just fucking bail and take a break.
+          return;
+        }
+        // Work is available - lets go!
+        this.startWorking(idle, pos);        
+      }
+
+    }.bind(this), 100);
+
+
+  }
+
+  this.startWorking = function(workerWrapper, position) {
+
+    if (workerWrapper.currentPosition !== 0) {
+      return false;
+    }
+
+    workerWrapper.currentPosition = position;
+    var fen = position.fen;
+
+    workerWrapper.worker.postMessage('ucinewgame');
+    workerWrapper.worker.postMessage('position fen ' + fen);
+    workerWrapper.worker.postMessage('go depth 6');
+
+    console.log("Worker" + workerWrapper.id + " started working")
+
+    return true;
+
+  }
+
+
+}
+
+
+
+var Net = function(config) {
+
+    this.config = config || {};
+
+    this.requestBatch = function() {
+      this.makeRequest('batch');
+    }
+
+    this.sendResults = function(resultBatch) {
+      this.makeRequest('results', {'batch': resultBatch});   
+    }
+
+    this.makeRequest = function(method, payload) {
+
+      if (this.config.testing) {
+        // FOR TESTING
+        // Simulating volatile network connection by using random timeout value
+        var timeout = Math.floor(Math.random() * 2000);
+
+        setTimeout(function() {
+          SERVER.api({method: method, payload: payload});
+        }, timeout);
+
+        // Logging for debugging
+        $(distChess.generalLogger).trigger('notification', ['NETWORK: Request sent', method]);
+
+
+      }
+
+      else {
+        // FOR PRODUCTION
+          // WRITE PRODUCTION AJAX CALL HERE
+
+      }
+
+    }
+
+    this.receiveFromServer = function(type, data) {
+
+      if (type === 'resultConfirmed') {
+        // Can - for example - show earned points which are brough in data
+        $(distChess).trigger('serverConfirmedResults');
+      }
+
+      else if (type === 'resultFailed') {
+        $(distChess).trigger('serverDeniedResults');
+      }
+
+      else if (type === 'gamesForAnalysis') {
+        $(distChess).trigger('gamesReceivedFromServer', [data]);
+      }
+
+      else if (type === 'noGamesAvailable') {
+        $(distChess).trigger('noGamesAvailable');
+      }
+
+      else {
+        $(distChess.errorLogger).trigger('notification', ['NETWORK: Invalid response type from server', type]);
+      }
+
+    }
+
+}
+
+
+
+
+  </script>
+  </body>
+  </html>

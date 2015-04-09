@@ -1,0 +1,324 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Distributed Chess Analysis Project</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font: 13px Helvetica, Arial; }
+
+      .mainView {
+        display: none;
+      }
+
+    </style>
+    <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+
+    <script src="chess.js"></script>
+  </head>
+  <body>
+
+  <script>
+  var distChess = {};
+
+  // Later, move all constructors into constructor namespace inside distChess!
+  distChess.errorLogger = {};
+  distChess.generalLogger = {};
+  distChess.buildLogger = {};
+
+  console.log("PARSING FILE");
+
+var Batch = function(id) {
+
+  this.id = id;
+  this.openPositions = [];
+  this.pendingPositions = [];
+  this.donePositions = [];
+
+  this.hasOpenPositions = function() {
+
+    return this.openPositions.length > 0;
+  }
+
+  this.getPosition = function() {
+
+    var pos = this.openPositions.shift();
+    this.pendingPositions.push(pos);
+
+    return pos;
+  }
+
+  this.addPosition = function(pos) {
+
+    this.openPositions.push(pos);
+  }
+
+}  
+
+
+
+// Note - Batch Controller does not need to have link to Worker Controller as Worker Contr. asks for positions independently!
+var BatchController = function() {
+
+  this.batchQueue = [];
+
+  this.addBatch = function(batch) {
+    this.batchQueue.push(batch);
+  }
+
+  this.batchIsDone = function(batch) {
+
+    // Stats -module and Net-module at least should listen for this
+    $(distChess).trigger('batchIsCompleted', [batch]);
+
+    if (this.batchQueue.length === 0) {
+      // We need more stuff for workers to analyse, so request from server
+      // Wait a bit first so that user can here stop analysing
+      setTimeout(function() {
+        $(distChess).trigger('suggestStateChange', ['askUserForAdditionalAnalysing']);
+      }, 0);
+    }
+  }
+
+  this.getPositionForAnalysis = function() {
+
+    var currentBatch = this.batchQueue[0];
+
+    if (!currentBatch) {
+      // No batches anymore -> should go fetch new ones from server
+      // Access server here
+      return 0;
+    }
+
+    if (currentBatch.hasOpenPositions()) {
+      var pos = currentBatch.getPosition();
+      $(distChess.generalLogger).trigger('notification', ['POS. CONTROLLER: Handing out position', pos.id]);
+      return pos;
+    }
+
+    else {
+      // BATCH IS DONE FOR GOOD!
+
+      this.batchQueue.shift(); // Same batch as currentBatch, so no need to catch the shifted element
+      // Async calling so that Worker Controller can get its return value first
+      setTimeout(function() {
+        this.batchIsDone(currentBatch);
+      }.bind(this), 0);
+
+      // Return 0 to indicated that nothing can be done for now
+      return 0;
+    }
+  }
+
+
+}
+
+var WorkerController = function(numOfWorkers, positionController) {
+
+  this.positionController = positionController;
+  this.num = numOfWorkers || 1;
+
+  this.workerDoneCounters = {};
+
+  this.workers = {};
+
+  this.checkerIntervalHandle = 0;
+
+  this.checkAndAddEvaluation = function(workerID, msg) {
+
+    var arr = msg.split(" ");
+    var idx = arr.indexOf('score');
+
+    // Score should be in second place in the splitted array
+    if (idx === 5) {
+      // Score found, update current evaluation of position
+      this.workers[workerID].currentPosition.evaluation = arr[7];
+      return true;
+    }
+    // Msg did not contain score, dump it
+    return false;
+  }
+
+  this.checkForBestMove = function(msg) {
+
+    if (msg.indexOf('bestmove') !== -1) {
+      return true;
+    }
+
+    return false;
+  }
+
+  this.msgFromWorker = function(id, worker, e) {
+
+    var addLatestEvaluation = this.checkAndAddEvaluation(id, e.data);
+    var hasBestMove = this.checkForBestMove(e.data);
+
+    // If bestmove was present, analysis for the position is done. Best evaluation is already saved into position object.
+    if (hasBestMove) {
+
+      console.log(e.data);
+
+      // Worker is done with the position
+      var resultPosition = this.workers[id].currentPosition;
+      this.workers[id].currentPosition = 0;
+      this.workers[id].currentCount++;
+      //resultPosition.evaluation = evaluation;
+
+      console.log("Best evaluation: " + resultPosition.evaluation);
+      console.log(resultPosition);
+
+      // Notify the world of this joyous event
+      $(distChess.generalLogger).trigger('notification', ['WORKER CONTR: Position done from worker: ' + id]);
+      $(distChess).trigger('positionEvaluated', [resultPosition]);
+
+
+
+    }
+
+
+  }
+
+  this.requestPosition = function() {
+
+    var pos = this.positionController.getNewPosition();
+
+    if (pos) {
+      this.newPositionArrived(pos);
+    }
+
+  }
+
+  this.getIdleWorker = function() {
+
+    for (var key in this.workers) {
+      if (this.workers.hasOwnProperty(key)) {
+        var worker = this.workers[key];
+
+        if (worker.currentPosition === 0) return worker;
+      }
+    }
+    // All bees are busy, nothing to return
+    return 0;
+
+/*    for (var i = this.workers.length - 1; i >= 0; i--) {
+      if (this.workers[i].currentPosition === 0) return this.workers[i];
+    }
+    
+    return 0;*/
+  }
+
+  this.initWorkers = function() {
+
+    console.log("INITING WORKERS");
+
+    var i = this.num;
+    var self = this;
+
+    while (i > 0) {
+      var id = i;
+      --i;
+      console.log("Creating worker #: " + id);
+      var w = new Worker('stockfish.js');
+      //w.postMessage({tag: 'init', id: i});
+
+      // Must escape closure that takes i by reference, we need copy of i
+      (function(id, worker) {
+
+        worker.addEventListener('message', function(e) {
+          
+          self.msgFromWorker(id, worker, e);
+        });
+
+      })(id, w);
+
+
+      this.workers[id] = {
+        id: id,
+        worker: w,
+        currentPosition: 0,
+        currentCount: 0
+      }
+
+      //this.workersCurrentPositions[id] = 0;
+      //this.workerDoneCounters[id] = 0;
+      
+    }
+    // Analysis can simply be stopped by stopping interval - then Worker Controller does not request new positions!
+    this.checkerIntervalHandle = setInterval(function() {
+      var idle = this.getIdleWorker();
+
+      if (idle !== 0) {
+
+        // We need position for this bumblebee
+        console.log("Requesting position for worker: " + idle.id + " at time: " + Date.now());
+        var pos = this.positionController.getPositionForAnalysis();
+        if (!pos) {
+          // Position was not available which means whole client-side is devoid of anything to analyze. 
+          // However, thats not our (workers) problem - so lets just fucking bail and take a break.
+          return;
+        }
+        // Work is available - lets go!
+        this.startWorking(idle, pos);        
+      }
+      else {
+        console.log("No idle workers - skipping...");
+      }
+
+    }.bind(this), 1200);
+
+
+  }
+
+  this.startWorking = function(workerWrapper, position) {
+    console.log("Worker " + workerWrapper.id + " starts working on " + position.fen);
+    if (workerWrapper.currentPosition !== 0) {
+      return false;
+    }
+
+    workerWrapper.currentPosition = position;
+    //this.workersCurrentPositions[workerWrapper.id] = position;
+    var fen = position.fen;
+    console.log("SENDING MSGS TO WORKER: " + workerWrapper.id + " with position: " + position.fen);
+    workerWrapper.worker.postMessage('ucinewgame');
+    workerWrapper.worker.postMessage('position fen ' + fen);
+    workerWrapper.worker.postMessage('go depth 18');
+
+    console.log("Worker" + workerWrapper.id + " started working")
+
+    return true;
+
+  }
+
+
+}
+
+var positionController = new BatchController();
+var workerController = new WorkerController(4, positionController);
+workerController.initWorkers();
+
+
+var batch = new Batch(1);
+batch.addPosition({game: 1782382, lastMove: 'e5', lastMoveNumber: 12, fen: '8/1k6/4N2P/2q5/4K3/p7/8/8 w - - 0 1'});
+batch.addPosition({game: 1782383, lastMove: 'Nf6', lastMoveNumber: 7, fen: '8/1k6/4N2P/2q5/4K3/p7/8/8 w - - 0 1'});
+batch.addPosition({game: 1782384, lastMove: 'e6', lastMoveNumber: 23, fen: '8/1k6/4N2P/2q5/4K3/p7/8/8 w - - 0 1'});
+batch.addPosition({game: 1782385, lastMove: 'e5', lastMoveNumber: 17, fen: '8/1k6/4N2P/2q5/4K3/p7/8/8 b - - 0 1'});
+batch.addPosition({game: 1782386, lastMove: 'f5', lastMoveNumber: 52, fen: '8/1k6/4N2P/2q5/4K3/p7/8/8 b - - 0 1'});
+
+positionController.addBatch(batch);
+
+setTimeout(function() {
+  console.log("ADDING NEW BATCH");
+  var batch = new Batch(2);
+  batch.addPosition({game: 1782382, lastMove: 'e5', lastMoveNumber: 12, fen: '8/1k6/4N2P/2q5/4K3/p7/8/8 w - - 0 1'});
+  batch.addPosition({game: 1782383, lastMove: 'Nf6', lastMoveNumber: 7, fen: '8/1k6/4N2P/2q5/4K3/p7/8/8 w - - 0 1'});
+  batch.addPosition({game: 1782384, lastMove: 'e6', lastMoveNumber: 23, fen: '8/1k6/4N2P/2q5/4K3/p7/8/8 w - - 0 1'});
+  batch.addPosition({game: 1782385, lastMove: 'e5', lastMoveNumber: 17, fen: '8/1k6/4N2P/2q5/4K3/p7/8/8 b - - 0 1'});
+  batch.addPosition({game: 1782386, lastMove: 'f5', lastMoveNumber: 52, fen: '8/1k6/4N2P/2q5/4K3/p7/8/8 b - - 0 1'});
+
+  positionController.addBatch(batch);
+
+}, 15000);
+
+</script>
+</body>
+</html>
