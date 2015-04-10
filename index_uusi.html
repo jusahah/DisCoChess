@@ -4,19 +4,66 @@
     <meta charset="UTF-8">
     <title>Distributed Chess Analysis Project</title>
     <link rel="stylesheet" type="text/css" href="chessboard-0.3.0.min.css">
+    <link rel="stylesheet" type="text/css" href="bootstrap.min.css">
+
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body { font: 13px Helvetica, Arial; }
 
       .mainView {
+        padding-left: 22px;
         display: none;
       }
+
+      h1.titleH1 {
+        text-align: center;
+        font-size: 22px;
+        font-style: italic;
+
+      }
+
+      .alertCentered {
+        text-align: center;
+      }
+
+      div#notificationsBar {
+
+        position: absolute;
+        width: 100%;
+        height: 30px;
+        top: 60px;
+        left: 0px;
+        background-color: #ccc;
+      }
+
+      div#titleBar {
+
+        position: absolute;
+        width: 100%;
+        height: 60px;
+        top:0px;
+        left: 0px; 
+        background-color: #333;
+        color: #fff;       
+      }
+
+
 
       ul {
         padding: 12px;
         font-size: 18px;
         list-style: none;
       }
+
+      ul#logUL {
+        margin-top: 10px;
+        height: 475px;
+        padding-top: 0px;
+        padding-bottom: 10px;
+        font-size: 11px;
+        overflow-y: auto;
+      }
+
       ul#sideBarButtonsUL li {
         background-color: #fff;
         padding: 4px;
@@ -32,7 +79,7 @@
         width: 54px;
         height: 54px;
         margin-bottom: 10px;
-        font-size: 32px;
+        font-size: 22px;
         text-align: center;
         color: #fff;
         padding-top: 6px;
@@ -58,11 +105,53 @@
       ul#threadsUL li.suspended {
         background-color: red;
       }
-      button {
 
+      button {
+        outline: 0;
+        border: 0;
+        background-color: #fff;
+        color: #222;
+        font-size: 16px;
+        text-align: center;
+        padding-top: 4px;
         cursor: pointer;
       }
+      span.senderserver, span.spanHeadline {
+        width: 75px;
+        color: blue;
+        font-weight: bold;
+        margin-right: 4px;
+        display: inline-block;
+      }
 
+      span.senderclient {
+        width: 75px;
+        color: purple;
+        font-weight: bold;
+        margin-right: 4px;
+        display: inline-block;
+      }
+
+      span.spanFen {
+        width: 445px;
+        color: purple;
+        font-weight: bold;
+        margin-right: 4px;
+        display: inline-block;       
+      }
+
+      #positionsSoFar {
+        position: absolute; 
+        bottom: 15px; 
+        width: 80px; 
+        height: 60px; 
+        left: 10px; 
+        background-color: white; 
+        color: #222; 
+        font-size: 26px;
+        text-align: center;
+        padding-top: 6px;
+      }
 
     </style>
     <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
@@ -71,46 +160,61 @@
 
   </head>
   <body>
-  <div id="appArea" style="position: relative; width: 700px; margin: auto;">
-    <div id="sideBarButtons" style="width: 100px; height: 600px; top: 100px; left: 60px; position: absolute; background-color: #eee;">
-      <ul id="sideBarButtonsUL">
+  <div id="appArea" style="position: relative; width: 700px; height: 690px; margin: auto; margin-top: 100px; background-color: red;">
+  <div id="titleBar"><h1 class="titleH1"> Distributed Chess Analysis - Client Frontend</h1></div>
+    <div id="notificationsBar"></div>
+    <div id="sideBarButtons" style="width: 100px; height: 600px; top: 90px; left: 0px; position: absolute; background-color: #eee;">
+      <ul id="sideBarButtonsUL" style="">
         <li data-dispatch="openMain">Main</li>
         <li data-dispatch="openLog">Log</li>
         <li data-dispatch="openStats">Stats</li>
+        <div id="positionsSoFar"><span id="counterValue">0</span><span style="font-size: 12px; display: block;">positions</div>
+
       </ul>
     </div>
 
-    <div id="viewArea" style="width: 600px; height: 600px; top: 100px; left: 160px; position: absolute; background-color: #ddd;">
+    <div id="viewArea" style="width: 600px; height: 600px; top: 90px; left: 100px; position: absolute; background-color: #ddd;">
 
     <div id="askUserView" class="mainView"><h1>Ask user</h1>
 
-      <button data-dispatch="continueAnalysis">Continue Analysing</button>
-      <button data-dispatch="endAnalysis">End Analysis</button>
+      <button class="btn btn-primary" data-dispatch="continueAnalysis">Continue Analysing</button>
+      <button class="btn btn-primary" data-dispatch="endAnalysis">End Analysis</button>
 
     </div>
     <div id="suspendedView" class="mainView">
       
     </div>
-    <div id="analysisOnView" class="mainView"><h1>Analysis On</h1>
-      <div id="analysisBoardArea" style="position: relative;">
-        <div id="boardElem" style="width: 400px"></div>
-        <div id="idleMsg" style="position: absolute; top: 120px; left: 100px; width: 200px; height: 44px; background-color: #fff; font-size: 36px; text-align: center; display: none;">Idle thread</div>
+    <div id="analysisOnView" class="mainView"><h3>Analysis On</h3>
+      <div id="analysisBoardArea" style="position: relative; margin-bottom: 10px; padding-l">
+        <div id="boardElem" style="width: 460px"></div>
+        <div id="idleMsg" style="position: absolute; top: 196px; left: 80px; width: 300px; height: 64px; background-color: #fff; font-size: 52px; text-align: center; display: none;">Idle thread</div>
+
+        <div id="threadUIArea" style="position: absolute; height: 420px; width: 80px; top: 20px; right: 20px; background-color: #fff;">
+          <div id="threadTitle" style="position: absolute; height: 20px; width: 100%; top: 0px; left: 0px; font-size: 16px; padding: 8px;">Threads</div>
+          <ul id="threadsUL" style="position: absolute; height: 380px; width: 100%; top: 20px; left: 0px;">
+          
+          </ul>
+        </div>
         
       </div>
-      <div id="threadUIArea" style="position: absolute; height: 400px; width: 80px; top: 20px; right: 20px; background-color: #fff;">
-        <ul id="threadsUL">
-          
-        </ul>
-      </div>
-      <button data-dispatch="autoAnalysisOff">Turn Off auto-fetching</button>
-      <button data-dispatch="autoAnalysisOn">Turn On auto-fetching</button>
+
+      <button class="btn btn-primary" id="autoAnalysisToggle" data-dispatch="autoAnalysisToggle">-</button>
+
 
 
     </div>
-    <div id="logView" class="mainView"><h1>Log</h1></div>
-    <div id="statsView" class="mainView"><h1>Stats</h1></div>
-    <div id="endedView" class="mainView"><h1>Analysis has ended</h1>
-      <button data-dispatch="continueAnalysis">Start Analysing</button>
+    <div id="logView" class="mainView">
+      <h3>Log</h3>
+      <div id="logTypes">
+        <button class="btn btn-primary" data-dispatch="logTypeToNet">Network Logs</button>
+        <button class="btn btn-primary" data-dispatch="logTypeToWorker">Worker Logs</button>
+        <button class="btn btn-primary" data-dispatch="logTypeToPosition">Position Logs</button>
+      </div>
+      <ul id="logUL"></ul>
+    </div>
+    <div id="statsView" class="mainView"><h3>Stats</h3></div>
+    <div id="endedView" class="mainView"><h3>Analysis is OFF</h3>
+      <button class="btn btn-primary" data-dispatch="continueAnalysis">Start Analysing</button>
     </div>
     </div>
   </div>
@@ -243,6 +347,7 @@
     this.createGame = function(info, positions) {
 
       var gameID = this.runningID;
+
       this.runningID++;
 
       var game = new SERVER.constructors.Game(gameID, info, positions);
@@ -302,47 +407,6 @@
 
 
   }
-
-
-
-  SERVER.positionStorage = [];
-
-  SERVER.api = function(request) {
-
-    
-
-    var method = request.method;
-    var data   = request.payload;
-
-    
-
-    if (method === 'batch') {
-      //alert("SERVER: Getting batch");
-      //alert("SERVER: Batch request");
-
-      var batch = SERVER.serverBatchController.needBatch();
-
-      if (!batch) {
-        return {tag: 'noBatchesAvailable', data: 0};
-      }
-
-      return {tag: 'batchForAnalysis', data: {batch: batch}};
-    }
-
-    else if (method === 'results') {
-
-      // Save resultBatch to database etc.
-      SERVER.resultReceiver.processResultBatch(data.batch);
-      console.log("SERVER: Received result batch: " + data.batch.id);
-      return {tag: 'resultConfirmed', data: 0};
-    }
-
-    else {
-      console.log("SERVER ERROR: Unknown method for request: " + method);
-      return {tag: 'unknownMethod', data: 0};
-    }
-  }
-
 /*  SERVER.positionStorage.push({game: 172, halfMoveNumber: 1, fen: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1'});
   SERVER.positionStorage.push({game: 172, halfMoveNumber: 2, fen: 'rnbqkbnr/ppp1pppp/3p4/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2'});
   SERVER.positionStorage.push({game: 172, halfMoveNumber: 3, fen: 'rnbqkbnr/ppp1pppp/3p4/8/4P3/8/PPPPNPPP/RNBQKB1R b KQkq - 1 2'});
@@ -371,6 +435,60 @@
   SERVER.positionStorage.push({game: 172, halfMoveNumber: 26, fen: 'r4rk1/pppq1ppp/1nn1b3/4P3/5P2/2N5/PPPBN1PP/R3KB1R w KQ - 1 14'});
   SERVER.positionStorage.push({game: 172, halfMoveNumber: 27, fen: 'k7/8/1K5p/7P/8/8/7P/8 w - - 0 1'});
   SERVER.positionStorage.push({game: 172, halfMoveNumber: 28, fen: '8/2np4/1kp5/8/4K3/3N4/8/8 w - - 0 1'});*/
+
+
+  SERVER.positionStorage = [];
+
+  SERVER.api = function(request) {
+
+    
+
+    var method = request.method;
+    var data   = request.payload;
+
+    
+
+    if (method === 'batch') {
+      //////
+      ////alert("SERVER: Getting batch");
+      //////
+      ////alert("SERVER: Batch request");
+
+      var batch = SERVER.serverBatchController.needBatch();
+
+      if (!batch) {
+        return {tag: 'noBatchesAvailable', data: 0};
+      }
+
+      return {tag: 'batchForAnalysis', data: {batch: JSON.stringify(batch)}};
+    }
+
+    else if (method === 'results') {
+
+      // Save resultBatch to database etc.
+      var batchObj = JSON.parse(data);
+      //
+      ////alert("JOO");
+      var serverBatch = new Batch(batchObj.id);
+
+      // Later you could perhaps just autocopy using jQuery's helper function
+      serverBatch.openPositions = batchObj.openPositions;
+      serverBatch.pendingPositions = batchObj.pendingPositions;
+      serverBatch.donePositions = batchObj.donePositions;
+      serverBatch.duration = batchObj.duration;
+
+      SERVER.resultReceiver.processResultBatch(serverBatch);
+      console.log("SERVER: Received result batch: " + serverBatch.id);
+      return {tag: 'resultConfirmed', data: 0};
+    }
+
+    else {
+      console.log("SERVER ERROR: Unknown method for request: " + method);
+      return {tag: 'unknownMethod', data: 0};
+    }
+  }
+
+
 var Batch = function(id) {
 
   this.id = id;
@@ -443,7 +561,8 @@ var Batch = function(id) {
   }
 
   this.addPosition = function(pos) {
-
+    ////
+    ////alert("ADDING POS INSIDE BATCH");
     this.openPositions.push(pos);
   }
 
@@ -457,12 +576,29 @@ var Batch = function(id) {
     this.pendingPositions = [];
     this.donePositions = [];
 
+    this.yourPositionHasBeenAddedToBatch = function(pos) {
+
+
+      ////
+      ////alert("GAMES POS LENGTH: " + this.openPositions.length + " | GAMEID: " + pos.game + " === " + this.id);
+
+      var idx = this.openPositions.indexOf(pos);
+
+      if (idx === -1) {
+        return false;
+      }
+
+      this.openPositions.splice(idx, 1);
+      this.pendingPositions.push(pos);
+      return true;
+    }
+
     this.registerOpenPosition = function(position) {
       this.openPositions.push(position);
     }
 
     this.isReady = function() {
-      return this.openPositions === 0 && this.pendingPositions === 0;
+      return this.openPositions.length === 0 && this.pendingPositions.length === 0;
     }
 
     this.getMyPosition = function(position) {
@@ -487,8 +623,9 @@ var Batch = function(id) {
         // You are not my son. GTFO.
         return false;
       }
-      alert("Removing from pending, adding to done");
-      this.pendingPositions.splice(i, 1);
+      //////
+      ////alert("Removing from pending, adding to done");
+      this.pendingPositions.splice(index, 1);
       this.donePositions.push(position);
 
     }
@@ -505,20 +642,35 @@ var Batch = function(id) {
 
     this.needBatch = function() {
       // No positions, no batch
-      if (SERVER.positionStorage.length === 0) return false;
+      if (this.positionStorage.length === 0) return false;
+
+      ////
+      ////alert("Position available: " + this.positionStorage.length);
 
       ++this.runningNumber;
       var batch = new Batch(this.runningNumber);
 
-      for (var i = 0; i < 16; i++) {
-        console.log("SERVER: ADDING GAME TO BATCH");
-        var pos = SERVER.positionStorage.shift();
+      for (var i = 0; i < 12; i++) {
+        console.log("SERVER: ADDING POS TO BATCH");
+        var pos = this.positionStorage.shift();
         if (pos) {
-          batch.addPosition(pos);
-        } else {       
-          break;
+          var game = this.gameStorage.findGame(pos.game); // Inform game that its position has been allocated to outgoing batch 
+          if (!game) {
+            ////
+            ////alert("NO GAME");
+            // Position has no game, so its orphan
+            continue; // Dumps the position
+          }
+          if (game.yourPositionHasBeenAddedToBatch(pos)) batch.addPosition(pos);                   
+        } else {  
+            ////
+            ////alert("NO POS");    
+            break;
         }
       }
+
+      ////
+      ////alert("BATCH LEN: " + batch.openPositions.length);
 
       return batch;
     }
@@ -532,16 +684,22 @@ var Batch = function(id) {
     this.gameStorage = gameStorage;
 
     this.routeResultPositionToGame = function(position) {
-      alert("Routing result to game");
+      //////
+      ////alert("Routing result to game" + Math.random());
+      //////
+      ////alert(position.fen + " - " +  position.evaluation);
       if (position && typeof position === 'object') {
         var gameID = position.game;
         var game = this.gameStorage.findGame(gameID);
 
         if (game) {
-          game.receiveArrivingPosition(position);
 
+          game.receiveArrivingPosition(position);
+/*          ////
+////alert("Game found: D = " + game.donePositions.length + ", P = " + game.pendingPositions.length + ", O = " + game.openPositions.length);*/
           if (game.isReady()) {
-            alert("Game is ready");
+            ////
+            ////alert("Game is ready");
             this.gameStorage.removeGame(gameID);
             this.doneGameHandler.receiveReadyGame(game);
           }
@@ -556,8 +714,10 @@ var Batch = function(id) {
     this.processResultBatch = function(batch) {
 
       console.log("RESULT: Processing batch starts");
+      var positions = batch.donePositions;
 
-      var positions = batch.donePositions();
+      //////
+      ////alert(positions.length);
 
       for (var i = positions.length - 1; i >= 0; i--) {
         this.routeResultPositionToGame(positions[i]);
@@ -579,6 +739,10 @@ var Batch = function(id) {
       return Math.random() * 1000000000;
     }
 
+    this.findGame = function(id) {
+      return this.games[id];
+    }
+
     this.removeGame = function(id) {
 
       this.games[id] = null;
@@ -587,13 +751,15 @@ var Batch = function(id) {
 
     this.addGame = function(pgn) {
 
-      var gameID = Math.floor(Math.random * 1000000000); // REFACTOR - needs to check that doesn't exist already
+      var gameID = Math.floor(Math.random() * 1000000000); // REFACTOR - needs to check that doesn't exist already
       var game = new Game(gameID);
       this.games[gameID] = game;
 
       var positions = this.pgnParser.parseSinglePGN(pgn);
 
       if (positions) {
+        //////
+        ////alert("Game succesfully positionalized");
         console.log("GAME SUCCESSFULLY POSITIONALIZED");
         for (var i = positions.length - 1; i >= 0; i--) {
           var p = positions[i];
@@ -626,12 +792,13 @@ var Batch = function(id) {
       // Send to email provided with game
       // Save to DB
 
+      //
       alert(pgnString);
     }
 
     this.getPGNFromPositions = function(game) {
 
-      var positions = game.positions;
+      var positions = game.donePositions;
 
       // Ensure order is right... positions are in ascending order, starting position first.
       positions.sort(function(a, b) {
@@ -650,7 +817,7 @@ var Batch = function(id) {
         }
 
         pgnString += positions[i].move;
-        pgnString += ' {' + positions[i].evaluation.toFixed(2) + '} ';
+        pgnString += ' {' + (parseInt(positions[i].evaluation)/100).toFixed(2) + '} ';
 
       };
 
@@ -724,14 +891,15 @@ var Batch = function(id) {
 
   setTimeout(function() {
 
-    alert("Adding test games to server");
+    ////
+    ////alert("Adding test games to server");
 
-    SERVER.gameStorage.addGame('1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6 8. c3 O-O 9. h3 Nb8  10. d4 Nbd7 11. c4 c6 12. cxb5 axb5 13. Nc3 Bb7 14. Bg5');
+    SERVER.gameStorage.addGame('1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6 8. c3 O-O 9. h3 Nb8  10. d4 Nbd7');
     SERVER.gameStorage.addGame('1. c4 b6 2. d4 Bb7 3. d5 e6 4. a3 Nf6 5. Nc3 exd5 6. cxd5 Bd6 7. g3 Be5 8. Bg2 O-O 9. Nh3 Na6');
     SERVER.gameStorage.addGame('1. Nf3 d5 2. d4 c5 3. c4 cxd4 4. cxd5 Nf6 5. Qxd4 Qxd5 6. Nc3 Qxd4 7. Nxd4 a6 8. Bf4 Nbd7 9. Bc7 e6 10. a3 Be7 11. g3 Ra7 12. Bg2 b6');
     SERVER.gameStorage.addGame('1. Nf3 Nf6 2. c4 g6 3. Nc3 Bg7 4. e4 d6 5. d4 O-O 6. Be2 e5 7. O-O Nc6 8. d5 Ne7 9. Ne1 Nd7 10. Be3 f5 11. f3 f4 12. Bf2 g5 13. Nd3 Nf6');
 
-  }, 10000);
+  }, 2000);
 
 
  /* var parser = new PGNParser(new Chess());
@@ -768,6 +936,91 @@ var Batch = function(id) {
   ////////////////////////////
 
   /// VIEWS
+
+var NotificationsBar = function($el) {
+
+  var NOTIFICATION_TYPES = ['danger', 'warning', 'success', 'info'];
+  this.$el = $el;
+  this.notificationHistory = [];
+
+  this.screenQueue = [];
+  this.screenFull;
+
+  this.currentIsVolatile;
+
+
+  this.newNotification = function(msg, isVolatile) {
+
+    if (NOTIFICATION_TYPES.indexOf(msg.tag) === -1) {
+      // Not supported notification
+      return false;
+    }
+    console.log("NEW NOT AGAIN");
+    console.log(msg);
+    console.log(isVolatile);
+
+    if (isVolatile) {
+      console.log("VOLATILE MSG");
+      if (!this.screenFull) {
+        // Push straigh away
+        this.showOnScreen(msg);
+      }
+      return;
+    }
+
+    console.log("NOTIFICATION RECE");
+    console.log(msg);
+
+
+
+    this.notificationHistory.unshift({time: Date.now(), msg: msg});
+
+    if (this.screenQueue.length > 3) {
+      // Too much traffic on notification panel
+      return true;
+    }
+
+    this.screenQueue.push(msg);
+    this.checkQueue();
+
+  }
+
+  this.checkQueue = function() {
+    console.log("NOTIFICATIONS: Checking queue");
+
+    if (this.screenFull) {
+      return;
+    }
+    var l = this.screenQueue.length;
+    if (l > 0) {
+      var msg = this.screenQueue.shift();
+      this.showOnScreen(msg);
+      this.screenFull = true;
+      setTimeout(function() {
+        this.screenFull = false;
+        this.removeFromScreen();
+        this.checkQueue();
+      }.bind(this), 5000 / (l+1) + 1000);
+    }
+  }
+
+  this.removeFromScreen = function() {
+    this.$el.empty();
+  }
+
+  this.showOnScreen = function(msg) {
+    console.log("TO SCREEN:" + msg.tag);
+    var alertDiv = '<div class="alert alertCentered alert-' + msg.tag.toLowerCase() + '" role="alert" style="height: 30px; padding-top: 6px;">' + msg.content + '</div>';
+    this.$el.empty().append(alertDiv);
+  }
+
+
+  $(distChess.notificationsChannel).on('notification', function(e, msg, isVolatile) {
+
+    this.newNotification(msg, isVolatile);
+  }.bind(this));
+
+}
 
   var ViewController = function(arrayOfViews) {
 
@@ -884,7 +1137,8 @@ var StateController = function() {
     }
 
     if (this.transits[this.currentState.name].indexOf(to.name) === -1) {
-      //alert("Transit failed: " + this.currentState.name + " -> " + to.name);
+      //////
+      ////alert("Transit failed: " + this.currentState.name + " -> " + to.name);
       $(distChess.errorLogger).trigger('notification', ['STATE CONTR: State transit does not exist: ' + this.currentState.name + " -> " + to.name]);
       return false;
     }
@@ -899,7 +1153,8 @@ var StateController = function() {
   }
 
   $(distChess).on('sleepMode', function() {
-    //alert("Sleep mode turning on");
+    //////
+    ////alert("Sleep mode turning on");
     this.doTransit(this.states['analysisEnded']);
 
   }.bind(this));
@@ -960,11 +1215,13 @@ var StateController = function() {
     this.name = 'analysisOn';
 
     this.onStateStart = function() {
+      $(distChess).trigger('autoAnalysisToggle', [true]);
       $(distChess).trigger('startAnalysing');
     }
 
     this.onStateEnd = function() {
-      alert("Analysis stopping");
+      ////
+      ////alert("Analysis stopping");
       $(distChess).trigger('stopAnalysing');
     }
   }
@@ -1107,6 +1364,7 @@ var StateController = function() {
 
     this.$elem = $elem;
     this.$idleMsg = $idleMsg;
+    this.$autoButton = $('#autoAnalysisToggle'); // This is not part of elem, so fetching it here breaks encapsulation. Consider REFACTOR
     this.chessBoard = chessBoardInstance;
 
     this.isActive = true;
@@ -1125,12 +1383,32 @@ var StateController = function() {
       this.currentThread = id;
     }
 
+    this.updateAutoAnalysisButton = function(e, isOn) {
+
+      //alert("UPDATING AUTO ANALYSIS BTN: " + isOn);
+
+      if (isOn === true) {
+        //alert('TO TRUE');
+        this.$autoButton.empty().append("Auto-analysis ON");
+        this.$autoButton.removeClass('btn-danger').addClass('btn-success');
+      }
+
+      else if (isOn === false) {
+        //alert('TO FALSE');
+        this.$autoButton.empty().append("Auto-analysis OFF");
+        this.$autoButton.removeClass('btn-success').addClass('btn-danger');        
+      }
+
+      //alert('OFF');
+    }
+
     this.updateBoard = function(fen) {
 
       this.$idleMsg.hide(); // Hide fucking everytime, you know... just in case
       console.log("UPDATING ANALYSIS BOARD: " + fen);
       var fenPosition = fen.split(" ")[0];
-      //alert(fenPosition);
+      //////
+      ////alert(fenPosition);
       this.chessBoard.position(fenPosition);
     }
 
@@ -1142,7 +1420,8 @@ var StateController = function() {
     }
 
     $(distChess).on('positionAnalysisStarted', function(e, id, fen) {
-      //alert(id + " | " + this.currentThread + " | " + fen);
+      //////
+      ////alert(id + " | " + this.currentThread + " | " + fen);
       if (parseInt(id) === parseInt(this.currentThread)) {
         // Update UI Board
         this.updateBoard(fen);
@@ -1169,7 +1448,9 @@ var StateController = function() {
         this.updateBoard(fen);
       }
       
-    }.bind(this))
+    }.bind(this));
+
+    $(distChess).on('autoAnalysisChanged', this.updateAutoAnalysisButton.bind(this));
   } 
 
   var ThreadUI = function($UL) {
@@ -1178,7 +1459,7 @@ var StateController = function() {
 
     this.getHTMLForElement = function(id) {
 
-      return '<li class="threadUI suspended" data-dispatch="changeThreadInUI" data-liType="threadSwitch" data-threadID="' + id + '">' + id + '</li>';
+      return '<li class="threadUI btn btn-danger" data-dispatch="changeThreadInUI" data-liType="threadSwitch" data-threadID="' + id + '">' + id + '</li>';
     }
 
     // Consider abstracting loop out of the next three (or at least two) functions
@@ -1191,7 +1472,7 @@ var StateController = function() {
         li = $(li);
 
         if (li.attr('data-threadID') == id) {
-          li.removeClass('running').addClass('suspended');
+          li.removeClass('btn-success').addClass('btn-danger');
           return false; // Breaks out of loop
         }
       });
@@ -1206,7 +1487,7 @@ var StateController = function() {
         li = $(li);
 
         if (li.attr('data-threadID') == id) {
-          li.removeClass('suspended').addClass('running');
+          li.removeClass('btn-danger').addClass('btn-success');
           return false; // Breaks out of loop
         }
       });
@@ -1282,8 +1563,10 @@ var StateController = function() {
 
   /// BUILDING THE APP
   var distChess = {};
+  distChess.notificationsChannel = {};
 
   $(document).ready(function() {
+
  
 
 
@@ -1295,7 +1578,17 @@ var StateController = function() {
     distChess.buildLogger = new BuildLogger();
     distChess.workerLogger = new WorkerLogger();
     distChess.positionLogger = new PositionLogger();
-    distChess.loggerUI = new LoggerUI({error: distChess.errorLogger, general: distChess.generalLogger, build: distChess.buildLogger, worker: distChess.workerLogger, position: distChess.positionLogger}, $('#logView'));
+    distChess.networkLogger = new NetworkLogger();
+    distChess.loggerUI = new LoggerUI({
+      error: distChess.errorLogger, 
+      general: distChess.generalLogger, 
+      build: distChess.buildLogger, 
+      worker: distChess.workerLogger, 
+      position: distChess.positionLogger,
+      network: distChess.networkLogger
+    }, $('#logView'));
+
+    distChess.notificationsBar = new NotificationsBar($('#notificationsBar'));
 
     distChess.net = new Net({'testing': true});
 
@@ -1331,14 +1624,18 @@ var StateController = function() {
     distChess.stateController.initToState(analysisEndedState);
 
     // UI element containers
-    distChess.boardViewer = new BoardViewer($("#analysisBoardArea"), $('#idleMsg'), new ChessBoard('boardElem', 'start'));
+    distChess.boardViewer = new BoardViewer($("#analysisBoardArea"), $('#idleMsg'), new ChessBoard('boardElem', {
+      moveSpeed: 0,
+      snapbackSpeed: 0,
+      snapSpeed: 0,
+      position: 'start'}));
     distChess.threadUI = new ThreadUI($("#threadsUL"));
 
     // Main control flow handling 
     // PositionController keeps list of positions (batch = set of positions)
     // WorkerController polls PositionController whenever worker thread needs new job
     distChess.positionController = new BatchController(distChess.net);
-    distChess.workerController = new WorkerController(4, 10, distChess.positionController);
+    distChess.workerController = new WorkerController(6, 14, distChess.positionController);
     distChess.workerController.initWorkers();
 
     //distChess.nodeEvaluator = new NodeEvaluator(distChess.workerController);
@@ -1464,7 +1761,22 @@ var LoggerUI = function(logChannels, $elem) {
   this.logChannels = logChannels || {};
   this.$elem = $elem;
 
+  this.$UL = $elem.find('ul');
+
   this.currentChannel = 0;
+
+  this.showWorkerLogs = function() {
+    this.currentChannel = logChannels['worker'];
+    this.updateUI();
+  }
+  this.showNetLogs = function() {
+    this.currentChannel = logChannels['network'];
+    this.updateUI();
+  }
+  this.showPositionLogs = function() {
+    this.currentChannel = logChannels['position'];
+    this.updateUI();
+  } 
 
   this.switchChannel = function(channel) {
 
@@ -1478,22 +1790,23 @@ var LoggerUI = function(logChannels, $elem) {
   this.updateUI = function() {
 
     if (this.currentChannel) {
-      alert("LOG CHANNEL FOUND");
+      ////
+      ////alert("LOG CHANNEL FOUND");
       var logs = this.currentChannel.getLogs();
-      var html = '<ul>';
+      var html = '';
 
-      for (var i = logs.length - 1; i >= 0; i--) {
+      for (var i = 0, l = logs.length; i < l; i++) {
         html += '<li>' + logs[i].msg + '</li>';
       };
 
-      html += '</ul>';
+      html += '';
 
-      this.$elem.empty().append(html);
-
+      this.$UL.empty().append(html);
+/*
       if (this.currentChannel.hasOwnProperty('getTotalTime')) {
         var time = this.currentChannel.getTotalTime();
         this.$elem.append('<h3>Total computation time taken by threads: ' + time + '</h3>');
-      }
+      }*/
 
 
     }
@@ -1503,20 +1816,45 @@ var LoggerUI = function(logChannels, $elem) {
 
   $(distChess).on('viewChange', function(e, viewName) {
     if (viewName === 'logView') {
-      //alert("Updating log UI");
+      //////
+      ////alert("Updating log UI");
       this.updateUI();
     }
   }.bind(this));
+
+  $(distChess).on('logTypeToPosition', this.showPositionLogs.bind(this));
+  $(distChess).on('logTypeToNet', this.showNetLogs.bind(this));
+  $(distChess).on('logTypeToWorker', this.showWorkerLogs.bind(this));
 }
 // These x loggers should probably use same prototype
+var NetworkLogger = function() {
+
+  this.notifications = [];
+  this.name = 'network';
+
+  // Prototype methods
+  this.log = function(e, msg, data) {
+    var msg = "<span class='sender" + msg.sender + "'>" + msg.sender.toUpperCase() + "</span>" + msg.content;
+    this.notifications.unshift({msg: msg, rawMsg: msg.content, type: 'notification', sender: msg.sender, data: data, timestamp: Date.now()});
+    if (this.notifications.length > 100) this.notifications.pop();
+  }
+
+  this.getLogs = function() {
+    return this.notifications.slice(0);
+  }
+
+  // Instance method
+  $(this).on('notification', this.log.bind(this));
+}
+
 var BuildLogger = function() {
 
   this.notifications = [];
   this.name = 'build';
 
   // Prototype methods
-  this.log = function(msg, data) {
-    this.notifications.push({msg: msg, type: 'notification', data: data.toString(), timestamp: Date.now()});
+  this.log = function(e, msg, data) {
+    this.notifications.push({msg: msg, type: 'notification', data: data, timestamp: Date.now()});
   }
 
   this.getLogs = function() {
@@ -1534,8 +1872,9 @@ var PositionLogger = function() {
 
   // Prototype methods
   this.log = function(e, halfmove, fen, duration) {
-    var msg = halfmove + " | " + " took time (ms): " + duration;
-    this.notifications.push({msg: msg, type: 'notification', data: {halfmove: halfmove, fen: fen, duration: duration}, timestamp: Date.now()});
+    var msg = "<span class='spanFen'>" +fen+"</span> | " + duration + " ms";
+    this.notifications.unshift({msg: msg, type: 'notification', data: {halfmove: halfmove, fen: fen, duration: duration}, timestamp: Date.now()});
+    if (this.notifications.length > 100) this.notifications.pop();
   }
 
   this.getLogs = function() {
@@ -1553,7 +1892,9 @@ var WorkerLogger = function() {
 
   // Prototype methods
   this.log = function(e, msg, duration) {
-    this.notifications.push({msg: msg, type: 'notification', data: duration, timestamp: Date.now()});
+    var msgString = "<span class='spanHeadline'>" + msg.sender.toUpperCase() + "</span>" + msg.content;
+    this.notifications.unshift({msg: msgString, rawMsg: msg.content, sender: msg.sender, type: 'notification', data: duration, timestamp: Date.now()});
+    if (this.notifications.length > 100) this.notifications.pop();
   }
 
   this.getLogs = function() {
@@ -1578,7 +1919,8 @@ var GeneralLogger = function() {
 
   // Prototype methods
   this.log = function(msg, data) {
-    this.notifications.push({msg: msg, type: 'notification', data: data.toString(), timestamp: Date.now()});
+    this.notifications.unshift({msg: msg, type: 'notification', data: data.toString(), timestamp: Date.now()});
+    if (this.notifications.length > 100) this.notifications.pop();
   }
 
   this.getLogs = function() {
@@ -1595,7 +1937,8 @@ var ErrorLogger = function() {
   this.name = 'error';
 
   this.log = function(msg, data) {
-    this.notifications.push({msg: msg, type: 'error', data: data.toString(), timestamp: Date.now()});
+    this.notifications.unshift({msg: msg, type: 'error', data: data.toString(), timestamp: Date.now()});
+    if (this.notifications.length > 100) this.notifications.pop();
   }
 
   this.getLogs = function() {
@@ -1611,6 +1954,8 @@ var ErrorLogger = function() {
 
 // Note - Batch Controller does not need to have link to Worker Controller as Worker Contr. asks for positions independently!
 var BatchController = function(net) {
+
+  this.autoAnalysis = true;
 
   this.net = net;
 
@@ -1660,6 +2005,18 @@ var BatchController = function(net) {
     return true;
   }
 
+  this.autoAnalysisToggled = function(e, forceSet) {
+
+    if (forceSet !== undefined) {
+      this.autoAnalysis = !!forceSet;
+    }
+    else {
+      this.autoAnalysis = !this.autoAnalysis;
+    }
+
+    $(distChess).trigger('autoAnalysisChanged', [this.autoAnalysis]);
+  }
+
   this.getPositionForAnalysis = function() {
 
 
@@ -1668,8 +2025,11 @@ var BatchController = function(net) {
     if (!currentBatch) {
       $(distChess).trigger('openPositionsLeft', [0]);
       // No batches anymore -> should go fetch new ones from server
-      // Access server here
-      this.net.requestBatch(); // Server responds one day, hopefully. 
+      // Access server here - we only fetch if autoAnalysis is on
+      if (this.autoAnalysis) {
+        this.net.requestBatch(); // Server responds one day, hopefully. 
+      }
+      
       return 0; // For now we just fucking bail and inform Workers synchronously that there is no batches available.
     }
 
@@ -1718,11 +2078,11 @@ var BatchController = function(net) {
 
   }
 
-  $(distChess).on('batchReceivedFromServer', function(e, data) {
+  $(distChess).on('batchReceivedFromServer', function(e, batch) {
 
-    if (this.validateBatch(data.batch)) {
+    if (this.validateBatch(batch)) {
       console.log("BATCH CONTR: Adding received batch to queue");
-      return this.addBatch(data.batch);
+      return this.addBatch(batch);
     }
     console.log("BATCH CONTR: Batch received but its corrupted. Bailing.");
   }.bind(this));
@@ -1733,6 +2093,10 @@ var BatchController = function(net) {
 
 
   }.bind(this));
+
+  $(distChess).on('autoAnalysisToggle', this.autoAnalysisToggled.bind(this));
+
+  $(distChess).trigger('autoAnalysisChanged', [this.autoAnalysis]);
 
 
 }
@@ -1800,7 +2164,7 @@ var WorkerController = function(numOfWorkers, depth, positionController) {
       resultPosition.duration = duration;
       worker.latestDuration   = duration;
 
-      $(distChess.workerLogger).trigger('notification', ["Worker #" + id + ": " + (Math.floor(duration/100)) / 10 + " secs", duration]);
+      $(distChess.workerLogger).trigger('notification', [{sender: "Worker #" + id, content: "Position analysed in <strong>" + (Math.floor(duration/100)) / 10 + "</strong> secs"}, duration]);
 
       worker.currentPosition = 0;
       worker.currentCount++;
@@ -1876,7 +2240,7 @@ var WorkerController = function(numOfWorkers, depth, positionController) {
   this.turnAnalysisOn = function() {
     // Analysis can simply be stopped by stopping interval - then Worker Controller does not request new positions!
     if (!this.checkerIntervalHandle) {
-      this.checkerIntervalHandle = setInterval(this.intervalFunction.bind(this), 150);
+      this.checkerIntervalHandle = setInterval(this.intervalFunction.bind(this), 100);
     }
   }
 
@@ -1888,6 +2252,11 @@ var WorkerController = function(numOfWorkers, depth, positionController) {
   }
 
   this.initWorkers = function() {
+
+    // Dont allow more than 6 threads max
+    if (this.num > 6) {
+      this.num = 6;
+    }
 
     console.log("INITING WORKERS");
 
@@ -1927,6 +2296,8 @@ var WorkerController = function(numOfWorkers, depth, positionController) {
       //this.workerDoneCounters[id] = 0;
       
     }
+
+    this.num = 0; // Remove number so nobody accidentally recreates threads
     // Broadcast to the world all thread ids
     $(distChess).trigger('threadsInitialized', [ids]);
   }
@@ -1980,14 +2351,16 @@ var Net = function(config) {
     this.requestBatch = function() {
       if (!this.batchRequestPending) {
         this.batchRequestPending = true;
+        $(distChess.networkLogger).trigger('notification', [{sender: 'client', content: 'Need more positions for analysing'}]);
+        $(distChess.notificationsChannel).trigger('notification', [{tag: 'warning', content: 'Waiting for positions from server...'}, true]);
         this.makeRequest('batch', {});
       
 
-        setTimeout(function() {
+        this.batchRequestTimeout = setTimeout(function() {
           // Something happened, lets allow resending
           this.batchRequestPending = false;
           this.batchRequestTimeout = 0;
-          $(distChess).trigger('serverConnectionFailed');
+          $(distChess.networkLogger).trigger('notification', [{sender: 'client', content: 'ERROR: Connection to server has timed out'}]);
         }.bind(this), 8000); // If we don't hear back in 8 seconds, we drop the request and allow resending
 
       }
@@ -1998,6 +2371,7 @@ var Net = function(config) {
 
       this.batchRequestPending = false;
       if (this.batchRequestTimeout !== 0) {
+
         clearTimeout(this.batchRequestTimeout);
       }
       this.batchRequestTimeout = 0;
@@ -2005,7 +2379,8 @@ var Net = function(config) {
     }
 
     this.sendResults = function(resultBatch) {
-      this.makeRequest('results', {'batch': resultBatch});   
+      $(distChess.networkLogger).trigger('notification', [{sender: 'client', content: 'Send analysed positions to server. Batch id: ' + resultBatch.id + ' | Num of positions: ' + resultBatch.donePositions.length}]);
+      this.makeRequest('results', resultBatch);   
     }
 
     this.makeRequest = function(method, payload) {
@@ -2015,10 +2390,12 @@ var Net = function(config) {
       if (this.config.testing) {
         // FOR TESTING
         // Simulating volatile network connection by using random timeout value
-        var timeout = Math.floor(Math.random() * 10) + 50;
+        var timeout = Math.floor(Math.random() * 1000) + 1500;
 
         setTimeout(function() {
-          var response = SERVER.api({method: method, payload: payload});
+          //
+          ////alert(JSON.stringify(payload));
+          var response = SERVER.api({method: method, payload: JSON.stringify(payload)});
           this.receiveFromServer(response.tag, response.data);
         }.bind(this), timeout);
 
@@ -2043,22 +2420,34 @@ var Net = function(config) {
 
       if (type === 'resultConfirmed') {
         // Can - for example - show earned points which are brough in data
+        $(distChess.networkLogger).trigger('notification', [{sender: 'server', content: 'Served has confirmed your analyses'}]);
+        $(distChess.notificationsChannel).trigger('notification', [{tag: 'success', content: 'Server has accepted your analyses! Thank you for your cooperation.'}, true]);
         $(distChess).trigger('serverConfirmedResults');
       }
 
       else if (type === 'resultFailed') {
+        $(distChess.networkLogger).trigger('notification', [{sender: 'server', content: 'Error! Served has denied your analyses! Contact administrator if problem persists.'}]);
+        $(distChess.notificationsChannel).trigger('notification', [{tag: 'danger', content: 'Server has rejected your analyses. Contact administrator if problem persists'}]);
         $(distChess).trigger('serverDeniedResults');
       }
 
       else if (type === 'batchForAnalysis') {
         this.resetBatchRequestWaiter();
-        $(distChess).trigger('batchReceivedFromServer', [data]);
+        var batchObj = JSON.parse(data.batch);
+        var clientBatch = new Batch(batchObj.id);
+        clientBatch.openPositions = batchObj.openPositions;
+        $(distChess.networkLogger).trigger('notification', [{sender: 'server', content: 'You have received a new set of fresh positions from server!'}]);
+        $(distChess.notificationsChannel).trigger('notification', [{tag: 'success', content: 'You have received fresh positions for analysis!'}, true]);
+        $(distChess).trigger('batchReceivedFromServer', [clientBatch]);
       }
 
       else if (type === 'noBatchesAvailable') {
         this.resetBatchRequestWaiter();
+        $(distChess.networkLogger).trigger('notification', [{sender: 'server', content: 'No positions for analysing available. Try again later.'}]);
+        $(distChess.notificationsChannel).trigger('notification', [{tag: 'danger', content: 'No positions available on the server'}]);
         $(distChess).trigger('sleepMode');
-        //alert("Batches out");
+        //////
+        ////alert("Batches out");
       }
 
       else if (type === 'noGamesAvailable') {
@@ -2071,12 +2460,27 @@ var Net = function(config) {
 
     }
 
-}
+};
 
-$(distChess).on('batchIsCompleted', function(e, batch) {
+// These don't have modules for them. We keep needed state inside closure.
+(function() {
 
-  alert("Batch done in (ms): " + batch.duration);
-});
+  var positionsSoFarCounter = $('#positionsSoFar').find('span#counterValue');
+  var counter = 0;
+
+  $(distChess).on('positionEvaluated', function() {
+    positionsSoFarCounter.empty().append(++counter);
+
+  });
+
+  $(distChess).on('batchIsCompleted', function(e, batch) {
+
+    ////
+    ////alert("Batch done in (ms): " + batch.duration);
+  });
+
+})();
+
 
 
 
