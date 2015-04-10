@@ -29,23 +29,25 @@
 
         cursor: pointer;
         display: block;
-        width: 30px;
-        height: 30px;
+        width: 54px;
+        height: 54px;
         margin-bottom: 10px;
+        font-size: 32px;
+        text-align: center;
+        color: #fff;
+        padding-top: 6px;
 
       }
       ul#threadsUL li.dimThread {
 
-        -webkit-box-shadow: 0px 0px 0px #292929;
-        -moz-box-shadow: 0px 0px 0px #292929;
-        box-shadow: 0px 0px 0px #292929;
+        border: 0;
 
       }
       ul#threadsUL li.lidThread {
 
-        -webkit-box-shadow: 0px 0px 3px #292929;
-        -moz-box-shadow: 0px 0px 3px #292929;
-        box-shadow: 0px 0px 3px #292929;
+        border-width: 2px;
+        border-style: solid;
+        border-color: black;
 
       }
 
@@ -64,11 +66,12 @@
 
     </style>
     <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+    <script src="chess.js"></script>
     <script src="chessboard-0.3.0.min.js"></script>
 
   </head>
   <body>
-  <div id="appArea" style="position: relative; width: ">
+  <div id="appArea" style="position: relative; width: 700px; margin: auto;">
     <div id="sideBarButtons" style="width: 100px; height: 600px; top: 100px; left: 60px; position: absolute; background-color: #eee;">
       <ul id="sideBarButtonsUL">
         <li data-dispatch="openMain">Main</li>
@@ -300,6 +303,8 @@
 
   }
 
+
+
   SERVER.positionStorage = [];
 
   SERVER.api = function(request) {
@@ -312,23 +317,13 @@
     
 
     if (method === 'batch') {
-      alert("SERVER: Getting batch");
+      //alert("SERVER: Getting batch");
       //alert("SERVER: Batch request");
 
-      if (SERVER.positionStorage.length === 0) {
+      var batch = SERVER.serverBatchController.needBatch();
+
+      if (!batch) {
         return {tag: 'noBatchesAvailable', data: 0};
-      }
-
-      var batch = new Batch();
-
-      for (var i = 0; i < 16; i++) {
-
-        console.log("SERVER: ADDING GAME TO BATCH");
-        var pos = SERVER.positionStorage.shift();
-
-        if (pos) {
-          batch.addPosition(pos);
-        }
       }
 
       return {tag: 'batchForAnalysis', data: {batch: batch}};
@@ -337,6 +332,7 @@
     else if (method === 'results') {
 
       // Save resultBatch to database etc.
+      SERVER.resultReceiver.processResultBatch(data.batch);
       console.log("SERVER: Received result batch: " + data.batch.id);
       return {tag: 'resultConfirmed', data: 0};
     }
@@ -347,7 +343,7 @@
     }
   }
 
-  SERVER.positionStorage.push({game: 172, halfMoveNumber: 1, fen: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1'});
+/*  SERVER.positionStorage.push({game: 172, halfMoveNumber: 1, fen: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1'});
   SERVER.positionStorage.push({game: 172, halfMoveNumber: 2, fen: 'rnbqkbnr/ppp1pppp/3p4/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2'});
   SERVER.positionStorage.push({game: 172, halfMoveNumber: 3, fen: 'rnbqkbnr/ppp1pppp/3p4/8/4P3/8/PPPPNPPP/RNBQKB1R b KQkq - 1 2'});
   SERVER.positionStorage.push({game: 172, halfMoveNumber: 4, fen: 'rnbqkb1r/ppp1pppp/3p1n2/8/4P3/8/PPPPNPPP/RNBQKB1R w KQkq - 2 3'});
@@ -373,8 +369,386 @@
   SERVER.positionStorage.push({game: 172, halfMoveNumber: 24, fen: 'r2q1rk1/ppp2ppp/1nn1b3/4P3/5P2/2b5/PPPBN1PP/RN2KB1R w KQ - 0 13'});
   SERVER.positionStorage.push({game: 172, halfMoveNumber: 25, fen: 'r2q1rk1/ppp2ppp/1nn1b3/4P3/5P2/2N5/PPPBN1PP/R3KB1R b KQ - 0 13'});
   SERVER.positionStorage.push({game: 172, halfMoveNumber: 26, fen: 'r4rk1/pppq1ppp/1nn1b3/4P3/5P2/2N5/PPPBN1PP/R3KB1R w KQ - 1 14'});
-  SERVER.positionStorage.push({game: 172, halfMoveNumber: 27, fen: 'r4rk1/pppq1ppp/1nn1b3/4P3/5P2/2N5/PPPBN1PP/2KR1B1R b - - 2 14'});
-  SERVER.positionStorage.push({game: 172, halfMoveNumber: 28, fen: 'r4rk1/pppq1ppp/1n2b3/4P3/1n3P2/2N5/PPPBN1PP/2KR1B1R w - - 3 15'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 27, fen: 'k7/8/1K5p/7P/8/8/7P/8 w - - 0 1'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 28, fen: '8/2np4/1kp5/8/4K3/3N4/8/8 w - - 0 1'});*/
+var Batch = function(id) {
+
+  this.id = id;
+  this.openPositions = [];
+  this.pendingPositions = [];
+  this.donePositions = [];
+
+  this.addTime;
+  this.duration;
+
+  this.recordAddTime = function() {
+    this.addTime = Date.now();
+  }
+
+  this.recordDuration = function() {
+    this.duration = Date.now() - this.addTime;
+  }
+
+  this.numOfOpenPositions = function() {
+    return this.openPositions.length;
+  }
+
+  this.numOfPendingPositions = function() {
+    return this.pendingPositions.length;
+  }
+
+  this.numOfDonePositions = function() {
+    return this.donePositions.length;
+  }
+
+  this.hasOpenPositions = function() {
+    return this.openPositions.length > 0;
+  }
+
+  this.hasPendingPositions = function() {
+    return this.pendingPositions.length > 0;
+  }
+
+  this.isReadyForReturn = function() {
+    return !this.hasOpenPositions() && this.numOfPendingPositions === 0;
+  }
+
+  this.getPosition = function() {
+
+    if (this.openPositions.length === 0) {
+      return false;
+    }
+
+    var pos = this.openPositions.shift();
+    pos.batchID = this.id; // Decorate so position knows where to return
+    this.pendingPositions.push(pos);
+
+    return pos;
+  }
+
+  this.confirmPosition = function(pos) {
+
+    var i = this.pendingPositions.indexOf(pos);
+
+    if (i === -1) {
+      console.log("BATCH ERROR: Evaluated position not found in pending positions: " + pos);
+      return false;
+    }
+    console.log("Removing from pending positions...");
+    this.pendingPositions.splice(i, 1);
+    this.donePositions.push(pos);
+    $(distChess.positionLogger).trigger('notification', [pos.halfMoveNumber, pos.fen, pos.duration]);
+    return true;
+
+  }
+
+  this.addPosition = function(pos) {
+
+    this.openPositions.push(pos);
+  }
+
+} 
+
+  var Game = function(id) {
+
+    this.id = id;
+
+    this.openPositions = [];
+    this.pendingPositions = [];
+    this.donePositions = [];
+
+    this.registerOpenPosition = function(position) {
+      this.openPositions.push(position);
+    }
+
+    this.isReady = function() {
+      return this.openPositions === 0 && this.pendingPositions === 0;
+    }
+
+    this.getMyPosition = function(position) {
+
+      // Note can return 0 which must be handled as truthy value!
+      for (var i = this.pendingPositions.length - 1; i >= 0; i--) {
+        // We test that halfMove, move and hashKey all match. Position's gameID has already been tested (we would not be here otherwise)
+        // HalfmoveNumber is tested first so we fail cheaply (short-circuiting)
+        if (this.pendingPositions[i].halfMoveNumber === position.halfMoveNumber && 
+          this.pendingPositions[i].hashKey === position.hashKey && 
+          this.pendingPositions[i].move === position.move) return i;
+      }
+      return -1;
+    }
+
+
+    this.receiveArrivingPosition = function(position) {
+      
+      // Welcome home, son
+      var index = this.getMyPosition(position);
+      if (index === -1) {
+        // You are not my son. GTFO.
+        return false;
+      }
+      alert("Removing from pending, adding to done");
+      this.pendingPositions.splice(i, 1);
+      this.donePositions.push(position);
+
+    }
+
+
+  }
+
+  var ServerBatchController = function(gameStorage, positionStorage) {
+
+    this.gameStorage = gameStorage;
+    this.positionStorage = positionStorage;
+
+    this.runningNumber = 1;
+
+    this.needBatch = function() {
+      // No positions, no batch
+      if (SERVER.positionStorage.length === 0) return false;
+
+      ++this.runningNumber;
+      var batch = new Batch(this.runningNumber);
+
+      for (var i = 0; i < 16; i++) {
+        console.log("SERVER: ADDING GAME TO BATCH");
+        var pos = SERVER.positionStorage.shift();
+        if (pos) {
+          batch.addPosition(pos);
+        } else {       
+          break;
+        }
+      }
+
+      return batch;
+    }
+
+
+  }
+
+  var ResultReceiver = function(doneGameHandler, gameStorage) {
+
+    this.doneGameHandler = doneGameHandler;
+    this.gameStorage = gameStorage;
+
+    this.routeResultPositionToGame = function(position) {
+      alert("Routing result to game");
+      if (position && typeof position === 'object') {
+        var gameID = position.game;
+        var game = this.gameStorage.findGame(gameID);
+
+        if (game) {
+          game.receiveArrivingPosition(position);
+
+          if (game.isReady()) {
+            alert("Game is ready");
+            this.gameStorage.removeGame(gameID);
+            this.doneGameHandler.receiveReadyGame(game);
+          }
+
+        }
+
+      }
+
+      
+    }
+
+    this.processResultBatch = function(batch) {
+
+      console.log("RESULT: Processing batch starts");
+
+      var positions = batch.donePositions();
+
+      for (var i = positions.length - 1; i >= 0; i--) {
+        this.routeResultPositionToGame(positions[i]);
+      };
+
+    }
+
+
+  }
+
+  var GameStorage = function(pgnParser, positionStorage) {
+
+    this.pgnParser = pgnParser;
+    this.positionStorage = positionStorage;
+
+    this.games = {};
+
+    this.getHashForPosition = function() {
+      return Math.random() * 1000000000;
+    }
+
+    this.removeGame = function(id) {
+
+      this.games[id] = null;
+      delete this.games[id];
+    }
+
+    this.addGame = function(pgn) {
+
+      var gameID = Math.floor(Math.random * 1000000000); // REFACTOR - needs to check that doesn't exist already
+      var game = new Game(gameID);
+      this.games[gameID] = game;
+
+      var positions = this.pgnParser.parseSinglePGN(pgn);
+
+      if (positions) {
+        console.log("GAME SUCCESSFULLY POSITIONALIZED");
+        for (var i = positions.length - 1; i >= 0; i--) {
+          var p = positions[i];
+          p.game = gameID;
+          p.hashKey = this.getHashForPosition(); // Every position gets hashKey which basically acts like a CSRF protection for the position.
+          game.registerOpenPosition(p);
+          this.positionStorage.push(p);
+        };
+
+        return true;
+        
+      }
+      console.log("PGN PARSING HAS FAILED -> DUMPING GAME: " + pgn);
+      return false;
+
+
+    }
+
+
+  }
+
+  var DoneGameHandler = function(parserEngine) {
+
+    this.parserEngine = parserEngine;
+
+    this.receiveReadyGame = function(game) {
+
+      var pgnString = this.getPGNFromPositions(game);
+
+      // Send to email provided with game
+      // Save to DB
+
+      alert(pgnString);
+    }
+
+    this.getPGNFromPositions = function(game) {
+
+      var positions = game.positions;
+
+      // Ensure order is right... positions are in ascending order, starting position first.
+      positions.sort(function(a, b) {
+        return a.halfMoveNumber < b.halfMoveNumber ? -1 : 1; 
+      });
+
+      var pgnString = '';
+      var moveNumber = 1;
+
+      for (var i = 0, l = positions.length; i < l; i++) {
+
+        if (i % 2 === 0 || i === 0) {
+          pgnString += moveNumber + '. ';
+          ++moveNumber;
+
+        }
+
+        pgnString += positions[i].move;
+        pgnString += ' {' + positions[i].evaluation.toFixed(2) + '} ';
+
+      };
+
+      return pgnString;
+    }
+
+  }
+
+
+  var PGNParser = function(parserEngine) {
+
+    this.parserEngine = parserEngine;
+
+    this.parseSinglePGN = function(pgn) {
+
+      var chess = this.parserEngine;
+
+      if (!chess.load_pgn(pgn)) {
+        return false;
+      }
+      var halfMoveFromEnd = 0;
+      var positions = [];
+      var lastPosition = chess.fen();
+
+      var latestMove = chess.undo();
+      while (latestMove) {
+        positions.push({halfMoveNumber: halfMoveFromEnd, move: latestMove.san, fen: lastPosition});
+        lastPosition = chess.fen();
+        latestMove = chess.undo();
+        ++halfMoveFromEnd;
+      }
+
+      for (var i = 0, l = positions.length; i < l; i++) {
+        var position = positions[i];
+        position.halfMoveNumber = halfMoveFromEnd - position.halfMoveNumber;
+      }
+      console.log("SUCCESSFULL PARSING OF PGN");
+      return positions;
+
+    }
+
+    this.parseMultiplePGNs = function(pgns, delimiter) {
+
+      var pgnsArr = pgns.split(delimiter);
+      var pgnPositions = [];
+
+      for (var i = pgnsArr.length - 1; i >= 0; i--) {
+        pgnPositions.push(this.parseSinglePGN(pgnsArr[i]));
+      };
+      return pgnPositions;
+    }
+  }
+
+  function decorateWithRandomEvals(positions) {
+
+      // positions are directly modified, void function
+      for (var i = 0, l = positions.length; i < l; i++) {
+        var position = positions[i];
+        position.evaluation = Math.random() * 4;
+        Math.random() < 0.5 ? position.evaluation *= -1 : true;
+      }
+
+
+  }
+
+  SERVER.pgnParser = new PGNParser(new Chess());
+  SERVER.doneGameHandler = new DoneGameHandler(null);
+  SERVER.gameStorage = new GameStorage(SERVER.pgnParser, SERVER.positionStorage);
+  SERVER.resultReceiver = new ResultReceiver(SERVER.doneGameHandler, SERVER.gameStorage);
+  SERVER.serverBatchController = new ServerBatchController(SERVER.gameStorage, SERVER.positionStorage);
+
+  setTimeout(function() {
+
+    alert("Adding test games to server");
+
+    SERVER.gameStorage.addGame('1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6 8. c3 O-O 9. h3 Nb8  10. d4 Nbd7 11. c4 c6 12. cxb5 axb5 13. Nc3 Bb7 14. Bg5');
+    SERVER.gameStorage.addGame('1. c4 b6 2. d4 Bb7 3. d5 e6 4. a3 Nf6 5. Nc3 exd5 6. cxd5 Bd6 7. g3 Be5 8. Bg2 O-O 9. Nh3 Na6');
+    SERVER.gameStorage.addGame('1. Nf3 d5 2. d4 c5 3. c4 cxd4 4. cxd5 Nf6 5. Qxd4 Qxd5 6. Nc3 Qxd4 7. Nxd4 a6 8. Bf4 Nbd7 9. Bc7 e6 10. a3 Be7 11. g3 Ra7 12. Bg2 b6');
+    SERVER.gameStorage.addGame('1. Nf3 Nf6 2. c4 g6 3. Nc3 Bg7 4. e4 d6 5. d4 O-O 6. Be2 e5 7. O-O Nc6 8. d5 Ne7 9. Ne1 Nd7 10. Be3 f5 11. f3 f4 12. Bf2 g5 13. Nd3 Nf6');
+
+  }, 10000);
+
+
+ /* var parser = new PGNParser(new Chess());
+  var toPGN  = new DoneGameHandler(new Chess());
+
+  var positions = parser.parseSinglePGN('1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6');
+  console.log(positions);
+
+  decorateWithRandomEvals(positions);
+
+  console.log(toPGN.getPGNFromPositions({positions: positions}));
+
+
+  var positions = parser.parseMultiplePGNs('1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6|1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1', '|');
+  console.log(positions);  */
+
+
 
 
 
@@ -910,6 +1284,7 @@ var StateController = function() {
   var distChess = {};
 
   $(document).ready(function() {
+ 
 
 
     // Later, move all constructors into constructor namespace inside distChess!
@@ -919,7 +1294,8 @@ var StateController = function() {
     distChess.generalLogger = new GeneralLogger();
     distChess.buildLogger = new BuildLogger();
     distChess.workerLogger = new WorkerLogger();
-    distChess.loggerUI = new LoggerUI({error: distChess.errorLogger, general: distChess.generalLogger, build: distChess.buildLogger, worker: distChess.workerLogger}, $('#logView'));
+    distChess.positionLogger = new PositionLogger();
+    distChess.loggerUI = new LoggerUI({error: distChess.errorLogger, general: distChess.generalLogger, build: distChess.buildLogger, worker: distChess.workerLogger, position: distChess.positionLogger}, $('#logView'));
 
     distChess.net = new Net({'testing': true});
 
@@ -962,8 +1338,10 @@ var StateController = function() {
     // PositionController keeps list of positions (batch = set of positions)
     // WorkerController polls PositionController whenever worker thread needs new job
     distChess.positionController = new BatchController(distChess.net);
-    distChess.workerController = new WorkerController(2, distChess.positionController);
+    distChess.workerController = new WorkerController(4, 10, distChess.positionController);
     distChess.workerController.initWorkers();
+
+    //distChess.nodeEvaluator = new NodeEvaluator(distChess.workerController);
 
 
     distChess.listener = new GeneralButtonListener($('#appArea'));
@@ -997,10 +1375,84 @@ var StateController = function() {
 
 
 
+/*var NodeEvaluator = function(workerController) {
+
+  this.workerController = workerController;
+  this.workerInstance = new Worker('stockfish.js');
+
+  this.currentEngineString;
+  this.currentPosition;
+
+  this.waitingQueue = [];
+
+  this.evaluateNodesOfBatch = function(batch) {
+
+    var positions = batch.getPositions();
+
+    
 
 
 
 
+
+
+  }
+
+  this.evaluateComplexity = function(nodesNum) {
+
+    // Depth is four
+    if (nodesNum < 400) {
+      return 1;
+    }
+    else if (nodesNum < 800) {
+      return 2;
+    }
+    else if (nodesNum < 1600) {
+      return 3;
+    }
+    else {
+      return 4;
+    }
+    
+
+  }
+
+  this.evaluateEngineString = function() {
+
+    if (this.currentEngineString) {
+
+      var parts = this.currentEngineString.split(' ');
+      var nodesIdx = parts.indexOf('nodes');
+
+      if (nodesIdx === -1) {
+        $(distChess.errorLogger).trigger('notification', ['Could not evaluate node amount: Keyword nodes not found']);
+      }
+
+      var nodesAmount = parts[nodesIdx+1];
+      var complexity  = this.evaluateComplexity(nodesAmount);
+
+
+
+    }
+  }
+
+  this.workerInstance.addEventListener('message', function(msg) {
+
+    if (msg.indexOf('nodes') !== -1) {
+      this.currentEngineString = msg;
+      return;
+    }
+
+    if (msg.indexOf('bestmove') !== -1) {
+      this.evaluateEngineString();
+      return;
+    }
+
+  });
+}
+
+
+*/
 
 
 
@@ -1026,20 +1478,28 @@ var LoggerUI = function(logChannels, $elem) {
   this.updateUI = function() {
 
     if (this.currentChannel) {
+      alert("LOG CHANNEL FOUND");
       var logs = this.currentChannel.getLogs();
       var html = '<ul>';
 
       for (var i = logs.length - 1; i >= 0; i--) {
-        html += '<li>' + logs[i].data + '</li>';
+        html += '<li>' + logs[i].msg + '</li>';
       };
 
       html += '</ul>';
 
       this.$elem.empty().append(html);
+
+      if (this.currentChannel.hasOwnProperty('getTotalTime')) {
+        var time = this.currentChannel.getTotalTime();
+        this.$elem.append('<h3>Total computation time taken by threads: ' + time + '</h3>');
+      }
+
+
     }
   }
 
-  this.currentChannel = this.logChannels.worker;
+  this.currentChannel = this.logChannels.position;
 
   $(distChess).on('viewChange', function(e, viewName) {
     if (viewName === 'logView') {
@@ -1067,18 +1527,44 @@ var BuildLogger = function() {
   $(this).on('notification', this.log.bind(this));
 }
 
+var PositionLogger = function() {
+
+  this.notifications = [];
+  this.name = 'position';
+
+  // Prototype methods
+  this.log = function(e, halfmove, fen, duration) {
+    var msg = halfmove + " | " + " took time (ms): " + duration;
+    this.notifications.push({msg: msg, type: 'notification', data: {halfmove: halfmove, fen: fen, duration: duration}, timestamp: Date.now()});
+  }
+
+  this.getLogs = function() {
+    return this.notifications.slice(0);
+  }
+
+  // Instance method
+  $(this).on('notification', this.log.bind(this));
+}
+
 var WorkerLogger = function() {
 
   this.notifications = [];
   this.name = 'worker';
 
   // Prototype methods
-  this.log = function(msg, data) {
-    this.notifications.push({msg: msg, type: 'notification', data: data.toString(), timestamp: Date.now()});
+  this.log = function(e, msg, duration) {
+    this.notifications.push({msg: msg, type: 'notification', data: duration, timestamp: Date.now()});
   }
 
   this.getLogs = function() {
     return this.notifications.slice(0);
+  }
+
+  this.getTotalTime = function() {
+    return this.notifications.reduce(function(prev, curr) {
+      return prev + curr.data;
+    }, 0);
+    
   }
 
   // Instance method
@@ -1120,67 +1606,7 @@ var ErrorLogger = function() {
   $(this).on('notification', this.log.bind(this));
 }
 
-var Batch = function(id) {
 
-  this.id = id;
-  this.openPositions = [];
-  this.pendingPositions = [];
-  this.donePositions = [];
-
-  this.numOfOpenPositions = function() {
-    return this.openPositions.length;
-  }
-
-  this.numOfPendingPositions = function() {
-    return this.pendingPositions.length;
-  }
-
-  this.numOfDonePositions = function() {
-    return this.donePositions.length;
-  }
-
-  this.hasOpenPositions = function() {
-    return this.openPositions.length > 0;
-  }
-
-  this.isReadyForReturn = function() {
-    return !this.hasOpenPositions() && this.numOfPendingPositions === 0;
-  }
-
-  this.getPosition = function() {
-
-    if (this.openPositions.length === 0) {
-      return false;
-    }
-
-    var pos = this.openPositions.shift();
-    pos.batchID = this.id; // Decorate so position knows where to return
-    this.pendingPositions.push(pos);
-
-    return pos;
-  }
-
-  this.confirmPosition = function(pos) {
-
-    var i = this.pendingPositions.indexOf(pos);
-
-    if (i === -1) {
-      console.log("BATCH ERROR: Evaluated position not found in pending positions: " + pos);
-      return false;
-    }
-    console.log("Removing from pending positions...");
-    this.pendingPositions.splice(i, 1);
-    this.donePositions.push(pos);
-    return true;
-
-  }
-
-  this.addPosition = function(pos) {
-
-    this.openPositions.push(pos);
-  }
-
-} 
 
 
 // Note - Batch Controller does not need to have link to Worker Controller as Worker Contr. asks for positions independently!
@@ -1192,9 +1618,14 @@ var BatchController = function(net) {
 
   this.addBatch = function(batch) {
     this.batchQueue.push(batch);
+    batch.recordAddTime();
   }
 
   this.batchIsDone = function(batch) {
+
+    batch.recordDuration();
+    console.log("BATCH IS DONE");
+    console.log(batch);
 
     // Stats -module and Net-module at least should listen for this
     $(distChess).trigger('batchIsCompleted', [batch]);
@@ -1212,8 +1643,14 @@ var BatchController = function(net) {
   }
 
   this.getBatchByID = function(id) {
+    console.log("CHECKING BATCH QUEUE FOR ID: " + id);
+
     for (var i = this.batchQueue.length - 1; i >= 0; i--) {
-      if (this.batchQueue[i].id === id) return this.batchQueue[i];
+      if (this.batchQueue[i].id === id) {
+        console.log("BELOW THE BATCH FOUND IN QUEUE");
+        console.log(this.batchQueue[i]);
+        return this.batchQueue[i];
+      }
     };
     return false;
   }
@@ -1245,12 +1682,18 @@ var BatchController = function(net) {
     }
 
     else {
+
+      if (currentBatch.hasPendingPositions()) {
+        // Need to let pending positions finish first before we can safely just drop this fucker.
+        return;
+      }
       // BATCH IS DONE FOR GOOD!
       console.log("_______________________________");
       console.log("BATCH IS DONE -> REMOVING BATCH");
       console.log("_______________________________");
       this.batchQueue.shift(); // Same batch as currentBatch, so no need to catch the shifted element
       // Async calling so that Worker Controller can get its return value first
+      // I forgot why this must be so, but probably there was some half-assed reason.
       setTimeout(function() {
         this.batchIsDone(currentBatch);
       }.bind(this), 0);
@@ -1261,6 +1704,8 @@ var BatchController = function(net) {
   }
 
   this.processArrivingEvaluation = function(resultPosition) {
+    console.log("RESULT POSITION PROCESS STARTS:");
+    console.log(resultPosition);
     var batchID = resultPosition.batchID;
     var batch = this.getBatchByID(batchID);
 
@@ -1292,10 +1737,11 @@ var BatchController = function(net) {
 
 }
 
-var WorkerController = function(numOfWorkers, positionController) {
+var WorkerController = function(numOfWorkers, depth, positionController) {
 
   this.positionController = positionController;
   this.num = numOfWorkers || 1;
+  this.depth = depth;
 
   this.workerDoneCounters = {};
 
@@ -1305,10 +1751,12 @@ var WorkerController = function(numOfWorkers, positionController) {
 
   this.checkAndAddEvaluation = function(workerID, msg) {
 
+    console.log(msg);
+
     var arr = msg.split(" ");
     var idx = arr.indexOf('score');
 
-    // Score should be in second place in the splitted array
+    // Score should be in fifth place in the splitted array
     if (idx === 5) {
       // Score found, update current evaluation of position
       this.workers[workerID].currentPosition.evaluation = arr[7];
@@ -1352,7 +1800,7 @@ var WorkerController = function(numOfWorkers, positionController) {
       resultPosition.duration = duration;
       worker.latestDuration   = duration;
 
-      $(distChess.workerLogger).trigger('notification', ["Worker #" + id + ": " + (Math.floor(duration/100)) / 10 + " secs"]);
+      $(distChess.workerLogger).trigger('notification', ["Worker #" + id + ": " + (Math.floor(duration/100)) / 10 + " secs", duration]);
 
       worker.currentPosition = 0;
       worker.currentCount++;
@@ -1428,7 +1876,7 @@ var WorkerController = function(numOfWorkers, positionController) {
   this.turnAnalysisOn = function() {
     // Analysis can simply be stopped by stopping interval - then Worker Controller does not request new positions!
     if (!this.checkerIntervalHandle) {
-      this.checkerIntervalHandle = setInterval(this.intervalFunction.bind(this), 200);
+      this.checkerIntervalHandle = setInterval(this.intervalFunction.bind(this), 150);
     }
   }
 
@@ -1496,7 +1944,7 @@ var WorkerController = function(numOfWorkers, positionController) {
     console.log("SENDING MSGS TO WORKER: " + workerWrapper.id + " with position: " + position.fen);
     workerWrapper.worker.postMessage('ucinewgame');
     workerWrapper.worker.postMessage('position fen ' + fen);
-    workerWrapper.worker.postMessage('go depth 14');
+    workerWrapper.worker.postMessage('go depth ' + this.depth);
 
     console.log("Worker" + workerWrapper.id + " started working");
     $(distChess).trigger('positionAnalysisStarted', [workerWrapper.id, fen]);
@@ -1567,7 +2015,7 @@ var Net = function(config) {
       if (this.config.testing) {
         // FOR TESTING
         // Simulating volatile network connection by using random timeout value
-        var timeout = Math.floor(Math.random() * 500) + 50;
+        var timeout = Math.floor(Math.random() * 10) + 50;
 
         setTimeout(function() {
           var response = SERVER.api({method: method, payload: payload});
@@ -1624,6 +2072,11 @@ var Net = function(config) {
     }
 
 }
+
+$(distChess).on('batchIsCompleted', function(e, batch) {
+
+  alert("Batch done in (ms): " + batch.duration);
+});
 
 
 
