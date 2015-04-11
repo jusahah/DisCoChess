@@ -1,0 +1,2617 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Distributed Chess Analysis Project</title>
+    <link rel="stylesheet" type="text/css" href="chessboard-0.3.0.min.css">
+    <link rel="stylesheet" type="text/css" href="bootstrap.min.css">
+
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font: 13px Helvetica, Arial; }
+
+      .mainView {
+        padding-left: 22px;
+        display: none;
+      }
+
+      h1.titleH1 {
+        text-align: center;
+        font-size: 22px;
+        font-style: italic;
+
+      }
+
+      .alertCentered {
+        text-align: center;
+      }
+
+      div#notificationsBar {
+
+        position: absolute;
+        width: 100%;
+        height: 30px;
+        top: 60px;
+        left: 0px;
+        background-color: #ccc;
+      }
+
+      div#titleBar {
+
+        position: absolute;
+        width: 100%;
+        height: 60px;
+        top:0px;
+        left: 0px; 
+        background-color: #333;
+        color: #fff;       
+      }
+
+
+
+      ul {
+        padding: 12px;
+        font-size: 18px;
+        list-style: none;
+      }
+
+      ul#logUL {
+        margin-top: 10px;
+        height: 475px;
+        padding-top: 0px;
+        padding-bottom: 10px;
+        font-size: 11px;
+        overflow-y: auto;
+      }
+
+      ul#sideBarButtonsUL li {
+        background-color: #fff;
+        padding: 4px;
+        margin-bottom: 12px;
+        text-align: center;
+        cursor: pointer;
+      }
+
+      ul#threadsUL li {
+
+        cursor: pointer;
+        display: block;
+        width: 54px;
+        height: 54px;
+        margin-bottom: 10px;
+        font-size: 22px;
+        text-align: center;
+        color: #fff;
+        padding-top: 6px;
+
+      }
+      ul#threadsUL li.dimThread {
+
+        border: 0;
+
+      }
+      ul#threadsUL li.lidThread {
+
+        border-width: 2px;
+        border-style: solid;
+        border-color: black;
+
+      }
+
+      ul#threadsUL li.running {
+        background-color: green;
+      }
+
+      ul#threadsUL li.suspended {
+        background-color: red;
+      }
+
+      button {
+        outline: 0;
+        border: 0;
+        background-color: #fff;
+        color: #222;
+        font-size: 16px;
+        text-align: center;
+        padding-top: 4px;
+        cursor: pointer;
+      }
+      span.senderserver, span.spanHeadline {
+        width: 75px;
+        color: blue;
+        font-weight: bold;
+        margin-right: 4px;
+        display: inline-block;
+      }
+
+      span.senderclient {
+        width: 75px;
+        color: purple;
+        font-weight: bold;
+        margin-right: 4px;
+        display: inline-block;
+      }
+
+      span.spanFen {
+        width: 445px;
+        color: purple;
+        font-weight: bold;
+        margin-right: 4px;
+        display: inline-block;       
+      }
+
+      #positionsSoFar {
+        position: absolute; 
+        bottom: 15px; 
+        width: 80px; 
+        height: 60px; 
+        left: 10px; 
+        background-color: white; 
+        color: #222; 
+        font-size: 26px;
+        text-align: center;
+        padding-top: 6px;
+      }
+
+    </style>
+    <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+    <script src="chess.js"></script>
+    <script src="chessboard-0.3.0.min.js"></script>
+
+  </head>
+  <body>
+  <div id="appArea" style="position: relative; width: 700px; height: 690px; margin: auto; margin-top: 60px; background-color: red;">
+  <div id="titleBar"><h1 class="titleH1"> Distributed Chess Analysis - Client Frontend</h1></div>
+    <div id="notificationsBar"></div>
+    <div id="sideBarButtons" style="width: 100px; height: 600px; top: 90px; left: 0px; position: absolute; background-color: #eee;">
+      <ul id="sideBarButtonsUL" style="">
+        <li data-dispatch="openMain">Main</li>
+        <li data-dispatch="openLog">Log</li>
+        <li data-dispatch="openStats">Stats</li>
+        <div id="positionsSoFar"><span id="counterValue">0</span><span style="font-size: 12px; display: block;">positions</div>
+
+      </ul>
+    </div>
+
+    <div id="viewArea" style="width: 600px; height: 600px; top: 90px; left: 100px; position: absolute; background-color: #ddd;">
+
+    <div id="askUserView" class="mainView"><h1>Ask user</h1>
+
+      <button class="btn btn-primary" data-dispatch="continueAnalysis">Continue Analysing</button>
+      <button class="btn btn-primary" data-dispatch="endAnalysis">End Analysis</button>
+
+    </div>
+    <div id="suspendedView" class="mainView">
+      
+    </div>
+    <div id="analysisOnView" class="mainView"><h3>Analysis On</h3>
+      <div id="analysisBoardArea" style="position: relative; margin-bottom: 10px; padding-l">
+        <div id="boardElem" style="width: 460px"></div>
+        <div id="idleMsg" style="position: absolute; top: 196px; left: 80px; width: 300px; height: 64px; background-color: #fff; font-size: 52px; text-align: center; display: none;">Idle thread</div>
+
+        <div id="threadUIArea" style="position: absolute; height: 420px; width: 80px; top: 20px; right: 20px; background-color: #fff;">
+          <div id="threadTitle" style="position: absolute; height: 20px; width: 100%; top: 0px; left: 0px; font-size: 16px; padding: 8px;">Threads</div>
+          <ul id="threadsUL" style="position: absolute; height: 380px; width: 100%; top: 20px; left: 0px;">
+          
+          </ul>
+        </div>
+        
+      </div>
+
+      <button class="btn btn-primary" id="autoAnalysisToggle" data-dispatch="autoAnalysisToggle">-</button>
+
+
+
+    </div>
+    <div id="logView" class="mainView">
+      <h3>Log</h3>
+      <div id="logTypes">
+        <button class="btn btn-primary" data-dispatch="logTypeToNet">Network Logs</button>
+        <button class="btn btn-primary" data-dispatch="logTypeToWorker">Worker Logs</button>
+        <button class="btn btn-primary" data-dispatch="logTypeToPosition">Position Logs</button>
+      </div>
+      <ul id="logUL"></ul>
+    </div>
+    <div id="statsView" class="mainView"><h3>Stats</h3></div>
+    <div id="endedView" class="mainView"><h3>Analysis is OFF</h3>
+      <button class="btn btn-primary" data-dispatch="continueAnalysis">Start Analysing</button>
+    </div>
+    </div>
+  </div>
+
+
+
+  <script>
+  var SERVER = {};
+
+  SERVER.constructors = {};
+  SERVER.keySet = 'qwertyuiopasdfghjklzxcvbnm1234567890';
+
+  SERVER.constructors.Game = function(id, info, positions) {
+
+    this.createdAt = Date.now();
+
+    this.id = id;
+    this.info = info;
+    this.openPositions = positions;
+    this.pendingPositions = {};
+    this.donePositions = [];
+
+    this.hasOpenPositions = function() {
+
+      return this.openPositions.length > 0;
+    }
+
+    this.isReady = function() {
+
+      return !this.hasOpenPositions() && Object.keys(this.pendingPositions).length === 0;
+    }
+
+    this.createKeyForOutgoingPosition = function() {
+
+      // Creating analysis key for position
+      var l = SERVER.keySet.length-1;
+      var key = '';
+
+      for (var i=0; i<6; i++) {
+        key += SERVER.keySet[Math.floor(Math.random()*l)];
+      }
+
+      if (this.pendingPositions.hasOwnProperty(key)) {
+        // Already exists, create new one by recursing
+        return this.createKeyForOutgoingPosition();
+      }
+
+      return key;
+    }
+
+    this.getPositionForAnalysis = function() {
+
+      if (this.openPositions.length > 0) {
+        var pos = this.openPositions.pop();
+        var key = this.createKeyForOutgoingPosition();
+
+        pos.analysisKey = key;
+        pos.gameID = this.id;
+        this.pendingPositions[key] = pos;
+
+        return pos;
+      }
+
+    }
+
+    this.receiveAnalysisForPosition = function(analysis) {
+
+      if (!this.pendingPositions.hasOwnProperty(analysis.analysisKey)) {
+        return false;
+      }
+
+      delete this.pendingPositions[analysis.analysisKey];
+      this.donePositions.push(analysis.position);
+
+    }
+
+
+  }
+
+  SERVER.constructors.Cleaner = function(harvest) {
+
+    this.harvest = harvest;
+
+    this.handle = null;
+
+    this.turnOn = function() {
+      if (!this.handle) {
+        this.handle = setInterval(this.oneSweep.bind(this), 5000);
+      }
+      
+    }
+
+    this.turnOff = function() {
+      clearInterval(this.handle);
+      this.handle = null;
+    }
+
+    this.oneSweep = function() {
+
+      var games = this.harvest.games;
+      var game;
+
+      var readyArr = [];
+      var toBeDeleted = [];
+
+      for (key in games) {
+        game = games[key];
+
+        if (game.isReady()) {
+          toBeDeleted.push(key);
+          readyArr.push(game);
+        }
+      }
+
+      for (var i=0, l=toBeDeleted.length; i<l; i++) {
+        delete this.harvest.games[toBeDeleted[i]];
+      }
+
+      SERVER.resultBroadcaster.receiveReadyGames(readyArr);
+
+
+    }
+  }
+
+  SERVER.constructors.Harvest = function() {
+
+    this.games = {};
+    this.runningID = 1;
+
+    this.createGame = function(info, positions) {
+
+      var gameID = this.runningID;
+
+      this.runningID++;
+
+      var game = new SERVER.constructors.Game(gameID, info, positions);
+      this.games[gameID] = game;
+
+    }
+
+
+    this.getPosition = function() {
+
+      var position = 0;
+
+      for (key in this.games) {
+        if (this.games[key].hasOpenPositions()) {
+          position = this.games[key].getPositionForAnalysis();
+          break;
+        }
+      }
+
+      return position;
+    }
+  }
+
+  SERVER.constructors.GameReception = function(chessIns) {
+
+    this.chessJS = chessIns;
+
+    this.newGameReceive = function(pgn, info) {
+
+      if (!this.chessJS.load_pgn(pgn)) {
+        return false;
+      }
+      var positions = this.chopToPositions();
+
+      SERVER.Harvest.createGame(info, positions);
+    }
+
+    this.chopToPositions = function() {
+
+      var positions = [];
+      var num = 1;
+
+      if (this.chessJS) {
+        positions.push = this.chessJS.fen();
+        while(this.chessJS.undo()) {
+          positions.push({num: num, pos: this.chessJS.fen()});
+          num++;
+        }
+      }
+
+      return positions;
+    }
+
+
+
+
+
+
+  }
+/*  SERVER.positionStorage.push({game: 172, halfMoveNumber: 1, fen: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 2, fen: 'rnbqkbnr/ppp1pppp/3p4/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 3, fen: 'rnbqkbnr/ppp1pppp/3p4/8/4P3/8/PPPPNPPP/RNBQKB1R b KQkq - 1 2'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 4, fen: 'rnbqkb1r/ppp1pppp/3p1n2/8/4P3/8/PPPPNPPP/RNBQKB1R w KQkq - 2 3'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 5, fen: 'rnbqkb1r/ppp1pppp/3p1n2/8/3PP3/8/PPP1NPPP/RNBQKB1R b KQkq d3 0 3'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 6, fen: 'rnbqkb1r/ppp2ppp/3p1n2/4p3/3PP3/8/PPP1NPPP/RNBQKB1R w KQkq e6 0 4'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 7, fen: 'rnbqkb1r/ppp2ppp/3p1n2/4P3/4P3/8/PPP1NPPP/RNBQKB1R b KQkq - 0 4'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 8, fen: 'rnbqkb1r/pppn1ppp/3p4/4P3/4P3/8/PPP1NPPP/RNBQKB1R w KQkq - 1 5'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 9, fen: 'rnbqkb1r/pppn1ppp/3p4/3QP3/4P3/8/PPP1NPPP/RNB1KB1R b KQkq - 2 5'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 10, fen: 'rnbqkb1r/ppp2ppp/1n1p4/3QP3/4P3/8/PPP1NPPP/RNB1KB1R w KQkq - 3 6'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 11, fen: 'rnbqkb1r/ppp2ppp/1n1p4/4P3/4P3/1Q6/PPP1NPPP/RNB1KB1R b KQkq - 4 6'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 12, fen: 'rn1qkb1r/ppp2ppp/1n1pb3/4P3/4P3/1Q6/PPP1NPPP/RNB1KB1R w KQkq - 5 7'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 13, fen: 'rn1qkb1r/ppp2ppp/1n1pb3/4P3/4P3/6Q1/PPP1NPPP/RNB1KB1R b KQkq - 6 7'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 14, fen: 'rn1qkb1r/ppp2ppp/1n2b3/4p3/4P3/6Q1/PPP1NPPP/RNB1KB1R w KQkq - 0 8'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 15, fen: 'rn1qkb1r/ppp2ppp/1n2b3/4Q3/4P3/8/PPP1NPPP/RNB1KB1R b KQkq - 0 8'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 16, fen: 'rn1qk2r/ppp2ppp/1n1bb3/4Q3/4P3/8/PPP1NPPP/RNB1KB1R w KQkq - 1 9'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 17, fen: 'rn1qk2r/ppp2ppp/1n1bb3/8/4P3/2Q5/PPP1NPPP/RNB1KB1R b KQkq - 2 9'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 18, fen: 'rn1q1rk1/ppp2ppp/1n1bb3/8/4P3/2Q5/PPP1NPPP/RNB1KB1R w KQ - 3 10'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 19, fen: 'rn1q1rk1/ppp2ppp/1n1bb3/8/4PP2/2Q5/PPP1N1PP/RNB1KB1R b KQ f3 0 10'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 20, fen: 'r2q1rk1/ppp2ppp/1nnbb3/8/4PP2/2Q5/PPP1N1PP/RNB1KB1R w KQ - 1 11'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 21, fen: 'r2q1rk1/ppp2ppp/1nnbb3/4P3/5P2/2Q5/PPP1N1PP/RNB1KB1R b KQ - 0 11'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 22, fen: 'r2q1rk1/ppp2ppp/1nn1b3/4P3/1b3P2/2Q5/PPP1N1PP/RNB1KB1R w KQ - 1 12'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 23, fen: 'r2q1rk1/ppp2ppp/1nn1b3/4P3/1b3P2/2Q5/PPPBN1PP/RN2KB1R b KQ - 2 12'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 24, fen: 'r2q1rk1/ppp2ppp/1nn1b3/4P3/5P2/2b5/PPPBN1PP/RN2KB1R w KQ - 0 13'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 25, fen: 'r2q1rk1/ppp2ppp/1nn1b3/4P3/5P2/2N5/PPPBN1PP/R3KB1R b KQ - 0 13'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 26, fen: 'r4rk1/pppq1ppp/1nn1b3/4P3/5P2/2N5/PPPBN1PP/R3KB1R w KQ - 1 14'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 27, fen: 'k7/8/1K5p/7P/8/8/7P/8 w - - 0 1'});
+  SERVER.positionStorage.push({game: 172, halfMoveNumber: 28, fen: '8/2np4/1kp5/8/4K3/3N4/8/8 w - - 0 1'});*/
+
+
+  SERVER.positionStorage = [];
+
+  SERVER.api = function(request) {
+
+    
+
+    var method = request.method;
+    var data   = request.payload;
+
+    
+
+    if (method === 'batch') {
+      //////
+      ////alert("SERVER: Getting batch");
+      //////
+      ////alert("SERVER: Batch request");
+
+      var batch = SERVER.serverBatchController.needBatch();
+
+      if (!batch) {
+        return {tag: 'noBatchesAvailable', data: 0};
+      }
+
+      return {tag: 'batchForAnalysis', data: {batch: JSON.stringify(batch)}};
+    }
+
+    else if (method === 'results') {
+
+      // Save resultBatch to database etc.
+      var batchObj = JSON.parse(data);
+      //
+      ////alert("JOO");
+      var serverBatch = new Batch(batchObj.id);
+
+      // Later you could perhaps just autocopy using jQuery's helper function
+      serverBatch.openPositions = batchObj.openPositions;
+      serverBatch.pendingPositions = batchObj.pendingPositions;
+      serverBatch.donePositions = batchObj.donePositions;
+      serverBatch.duration = batchObj.duration;
+
+      SERVER.resultReceiver.processResultBatch(serverBatch);
+      console.log("SERVER: Received result batch: " + serverBatch.id);
+      return {tag: 'resultConfirmed', data: 0};
+    }
+
+    else {
+      console.log("SERVER ERROR: Unknown method for request: " + method);
+      return {tag: 'unknownMethod', data: 0};
+    }
+  }
+
+
+var Batch = function(id) {
+
+  this.id = id;
+  this.openPositions = [];
+  this.pendingPositions = [];
+  this.donePositions = [];
+
+  this.addTime;
+  this.duration;
+
+  this.recordAddTime = function() {
+    this.addTime = Date.now();
+  }
+
+  this.recordDuration = function() {
+    this.duration = Date.now() - this.addTime;
+  }
+
+  this.numOfOpenPositions = function() {
+    return this.openPositions ? this.openPositions.length : 0;
+  }
+
+  this.numOfPendingPositions = function() {
+    return this.pendingPositions ? this.pendingPositions.length : 0;
+  }
+
+  this.numOfDonePositions = function() {
+    return this.donePositions.length;
+  }
+
+  this.hasOpenPositions = function() {
+    return this.openPositions.length > 0;
+  }
+
+  this.hasPendingPositions = function() {
+    return this.pendingPositions.length > 0;
+  }
+
+  this.isReadyForReturn = function() {
+    return !this.hasOpenPositions() && this.numOfPendingPositions === 0;
+  }
+
+  this.getPosition = function() {
+
+    if (this.openPositions.length === 0) {
+      return false;
+    }
+
+    var pos = this.openPositions.shift();
+    pos.batchID = this.id; // Decorate so position knows where to return
+    this.pendingPositions.push(pos);
+
+    return pos;
+  }
+
+  this.confirmPosition = function(pos) {
+
+    var i = this.pendingPositions.indexOf(pos);
+
+    if (i === -1) {
+      console.log("BATCH ERROR: Evaluated position not found in pending positions: " + pos);
+      return false;
+    }
+    console.log("Removing from pending positions...");
+    this.pendingPositions.splice(i, 1);
+    this.donePositions.push(pos);
+    $(distChess.positionLogger).trigger('notification', [pos.halfMoveNumber, pos.fen, pos.duration]);
+    return true;
+
+  }
+
+  this.addPosition = function(pos) {
+    ////
+    ////alert("ADDING POS INSIDE BATCH");
+    this.openPositions.push(pos);
+  }
+
+} 
+
+  var Game = function(id) {
+
+    this.id = id;
+
+    this.info;
+
+    this.openPositions = [];
+    this.pendingPositions = [];
+    this.donePositions = [];
+
+    this.addInfo = function(info) {
+      //alert("ADDING INFO: " + JSON.stringify(info));
+      this.info = info;
+    }
+
+    this.yourPositionHasBeenAddedToBatch = function(pos) {
+
+
+      ////
+      ////alert("GAMES POS LENGTH: " + this.openPositions.length + " | GAMEID: " + pos.game + " === " + this.id);
+
+      var idx = this.openPositions.indexOf(pos);
+
+      if (idx === -1) {
+        return false;
+      }
+
+      this.openPositions.splice(idx, 1);
+      this.pendingPositions.push(pos);
+      return true;
+    }
+
+    this.registerOpenPosition = function(position) {
+      this.openPositions.push(position);
+    }
+
+    this.isReady = function() {
+      return this.openPositions.length === 0 && this.pendingPositions.length === 0;
+    }
+
+    this.getMyPosition = function(position) {
+
+      // Note can return 0 which must be handled as truthy value!
+      for (var i = this.pendingPositions.length - 1; i >= 0; i--) {
+        // We test that halfMove, move, fen and hashKey all match. Position's gameID has already been tested (we would not be here otherwise)
+        // HalfmoveNumber is tested first so we fail cheaply (short-circuiting) on most items
+        if (this.pendingPositions[i].halfMoveNumber === position.halfMoveNumber && 
+          this.pendingPositions[i].hashKey === position.hashKey && 
+          this.pendingPositions[i].move === position.move &&
+          this.pendingPositions[i].fen === position.fen) return i;
+      }
+      return -1;
+    }
+
+
+    this.receiveArrivingPosition = function(position) {
+      
+      // Welcome home, son
+      var index = this.getMyPosition(position);
+      if (index === -1) {
+        // You are not my son. GTFO.
+        return false;
+      }
+      //////
+      ////alert("Removing from pending, adding to done");
+      //this.standardizeEvaluationForWhite(position);
+      this.pendingPositions.splice(index, 1);
+      this.donePositions.push(position);
+
+    }
+
+    this.standardizeEvaluationForWhite = function(pos) {
+
+      var fenParts = pos.fen.split(" ");
+
+      if (fenParts[1] === 'b') {
+        pos.evaluation *= -1;
+      }
+    }
+
+
+  }
+
+  var ServerBatchController = function(gameStorage, positionStorage) {
+
+    this.gameStorage = gameStorage;
+    this.positionStorage = positionStorage;
+
+    this.runningNumber = 1;
+
+    this.needBatch = function() {
+      // No positions, no batch
+      if (this.positionStorage.length === 0) return false;
+
+      ////
+      ////alert("Position available: " + this.positionStorage.length);
+
+      ++this.runningNumber;
+      var batch = new Batch(this.runningNumber);
+
+      for (var i = 0; i < 12; i++) {
+        console.log("SERVER: ADDING POS TO BATCH");
+        var pos = this.positionStorage.shift();
+        if (pos) {
+          var game = this.gameStorage.findGame(pos.game); // Inform game that its position has been allocated to outgoing batch 
+          if (!game) {
+            ////
+            ////alert("NO GAME");
+            // Position has no game, so its orphan
+            continue; // Dumps the position
+          }
+          if (game.yourPositionHasBeenAddedToBatch(pos)) batch.addPosition(pos);                   
+        } else {  
+            ////
+            ////alert("NO POS");    
+            break;
+        }
+      }
+
+      ////
+      ////alert("BATCH LEN: " + batch.openPositions.length);
+
+      return batch;
+    }
+
+
+  }
+
+  var ResultReceiver = function(doneGameHandler, gameStorage) {
+
+    this.doneGameHandler = doneGameHandler;
+    this.gameStorage = gameStorage;
+
+    this.routeResultPositionToGame = function(position) {
+      //////
+      ////alert("Routing result to game" + Math.random());
+      //////
+      ////alert(position.fen + " - " +  position.evaluation);
+      if (position && typeof position === 'object') {
+        var gameID = position.game;
+        var game = this.gameStorage.findGame(gameID);
+
+        if (game) {
+
+          game.receiveArrivingPosition(position);
+/*          ////
+////alert("Game found: D = " + game.donePositions.length + ", P = " + game.pendingPositions.length + ", O = " + game.openPositions.length);*/
+          if (game.isReady()) {
+            ////
+            ////alert("Game is ready");
+            this.gameStorage.removeGame(gameID);
+            this.doneGameHandler.receiveReadyGame(game);
+          }
+
+        }
+
+      }
+
+      
+    }
+
+    this.processResultBatch = function(batch) {
+
+      console.log("RESULT: Processing batch starts");
+      var positions = batch.donePositions;
+
+      //////
+      ////alert(positions.length);
+
+      for (var i = positions.length - 1; i >= 0; i--) {
+        this.routeResultPositionToGame(positions[i]);
+      };
+
+    }
+
+
+  }
+
+  var GameStorage = function(pgnParser, positionStorage) {
+
+    this.pgnParser = pgnParser;
+    this.positionStorage = positionStorage;
+
+    this.games = {};
+
+    this.getHashForPosition = function() {
+      return Math.random() * 1000000000;
+    }
+
+    this.findGame = function(id) {
+      return this.games[id];
+    }
+
+    this.removeGame = function(id) {
+
+      this.games[id] = null;
+      delete this.games[id];
+    }
+
+    this.addGame = function(pgn) {
+
+      var gameID = Math.floor(Math.random() * 1000000000); // REFACTOR - needs to check that doesn't exist already
+      var game = new Game(gameID);
+      this.games[gameID] = game;
+
+      var positionsAndInfo = this.pgnParser.parseSinglePGN(pgn);
+      var positions = positionsAndInfo.positions;
+      var info = positionsAndInfo.info;
+
+      if (positions) {
+
+        game.addInfo(info);
+        //////
+        ////alert("Game succesfully positionalized");
+        console.log("GAME SUCCESSFULLY POSITIONALIZED");
+        for (var i = positions.length - 1; i >= 0; i--) {
+          var p = positions[i];
+          p.game = gameID;
+          p.hashKey = this.getHashForPosition(); // Every position gets hashKey which basically acts like a CSRF protection for the position.
+          game.registerOpenPosition(p);
+          this.positionStorage.push(p);
+        };
+
+        return true;
+        
+      }
+      console.log("PGN PARSING HAS FAILED -> DUMPING GAME: " + pgn);
+      return false;
+
+
+    }
+
+
+  }
+
+  var DoneGameHandler = function(parserEngine) {
+
+    this.parserEngine = parserEngine;
+
+    this.receiveReadyGame = function(game) {
+
+      var pgnString = this.getPGNFromPositions(game);
+
+      // Send to email provided with game
+      // Save to DB
+
+      //
+      alert("GAME READY: " + game.info.white + " | " + game.info.black);
+      alert(pgnString);
+    }
+
+    this.getPGNFromPositions = function(game) {
+
+      var positions = game.donePositions;
+
+      // Ensure order is right... positions are in ascending order, starting position first.
+      positions.sort(function(a, b) {
+        return a.halfMoveNumber < b.halfMoveNumber ? -1 : 1; 
+      });
+
+      var pgnString = '';
+      var moveNumber = 1;
+
+      for (var i = 0, l = positions.length; i < l; i++) {
+
+        if (i % 2 === 0 || i === 0) {
+          pgnString += moveNumber + '. ';
+          ++moveNumber;
+
+        }
+
+        pgnString += positions[i].move;
+        pgnString += ' {' + (parseInt(positions[i].evaluation)/100).toFixed(2) + ',' + positions[i].bestMove + '} ';
+
+      };
+
+      return pgnString;
+    }
+
+  }
+
+
+  var PGNParser = function(parserEngine) {
+
+    this.parserEngine = parserEngine;
+
+    this.getInfoObjectForGame = function(pgn) {
+
+      var info = {
+        white: '-',
+        black: '-'
+      };
+
+      var pgnParts = pgn.split("]");
+
+      for (var i = 0, l = pgnParts.length; i < l; i++) {
+
+        var part = pgnParts[i];
+        var wi = part.indexOf("[White ");
+        var bi = part.indexOf("[Black ");
+        if (wi !== -1) {
+          info.white = part.substr(wi+8).slice(0, -1);
+        }
+        else if (bi !== -1) {
+          info.black = part.substr(bi+8).slice(0, -1);
+
+        }
+        
+      };
+
+      //alert(info.white + " | " + info.black);
+      return info;
+
+
+
+    }
+
+    this.parseSinglePGN = function(pgn) {
+
+      var info = this.getInfoObjectForGame(pgn);
+
+      var chess = this.parserEngine;
+
+      if (!chess.load_pgn(pgn)) {
+        alert("FAIL");
+        return false;
+      }
+      var halfMoveFromEnd = 0;
+      var positions = [];
+      var lastPosition = chess.fen();
+
+      var latestMove = chess.undo();
+      while (latestMove) {
+        positions.push({halfMoveNumber: halfMoveFromEnd, move: latestMove.san, fen: lastPosition});
+        lastPosition = chess.fen();
+        latestMove = chess.undo();
+        ++halfMoveFromEnd;
+      }
+
+      for (var i = 0, l = positions.length; i < l; i++) {
+        var position = positions[i];
+        position.halfMoveNumber = halfMoveFromEnd - position.halfMoveNumber;
+      }
+      console.log("SUCCESSFULL PARSING OF PGN");
+      return {info: info, positions: positions};
+
+    }
+
+    this.parseMultiplePGNs = function(pgns, delimiter) {
+
+      var pgnsArr = pgns.split(delimiter);
+      var pgnPositions = [];
+
+      for (var i = pgnsArr.length - 1; i >= 0; i--) {
+        pgnPositions.push(this.parseSinglePGN(pgnsArr[i]));
+      };
+      return pgnPositions;
+    }
+  }
+
+  function decorateWithRandomEvals(positions) {
+
+      // positions are directly modified, void function
+      for (var i = 0, l = positions.length; i < l; i++) {
+        var position = positions[i];
+        position.evaluation = Math.random() * 4;
+        Math.random() < 0.5 ? position.evaluation *= -1 : true;
+      }
+
+
+  }
+
+  SERVER.pgnParser = new PGNParser(new Chess());
+  SERVER.doneGameHandler = new DoneGameHandler(null);
+  SERVER.gameStorage = new GameStorage(SERVER.pgnParser, SERVER.positionStorage);
+  SERVER.resultReceiver = new ResultReceiver(SERVER.doneGameHandler, SERVER.gameStorage);
+  SERVER.serverBatchController = new ServerBatchController(SERVER.gameStorage, SERVER.positionStorage);
+
+  setTimeout(function() {
+
+    ////
+    ////alert("Adding test games to server");
+    pgn = ['[Event "Casual Game"]',
+       '[Site "Berlin GER"]',
+       '[Date "1852.??.??"]',
+       '[EventDate "?"]',
+       '[Round "?"]',
+       '[Result "1-0"]',
+       '[White "Adolf Anderssen"]',
+       '[Black "Jean Dufresne"]',
+       '[ECO "C52"]',
+       '[WhiteElo "?"]',
+       '[BlackElo "?"]',
+       '[PlyCount "47"]',
+       '',
+       '1.e4 e5 2.Nf3 Nc6 3.Bc4 Bc5 4.b4 Bxb4 5.c3 Ba5 6.d4 exd4 7.O-O',
+       'd3 8.Qb3 Qf6 9.e5 Qg6 10.Re1 Nge7 11.Ba3 b5 12.Qxb5 Rb8 13.Qa4',
+       'Bb6 14.Nbd2 Bb7 15.Ne4 Qf5 16.Bxd3 Qh5 17.Nf6+ gxf6 18.exf6',
+       'Rg8 19.Rad1 Qxf3 20.Rxe7+ Nxe7 21.Qxd7+ Kxd7 22.Bf5+ Ke8',
+       '23.Bd7+ Kf8 24.Bxe7# 1-0'];
+
+    var pgn = pgn.join('\n');
+
+    SERVER.gameStorage.addGame(pgn);
+    SERVER.gameStorage.addGame('1. c4 b6 2. d4 Bb7 3. d5 e6 4. a3 Nf6 5. Nc3 exd5 6. cxd5 Bd6 7. g3 Be5 8. Bg2 O-O 9. Nh3 Na6');
+    SERVER.gameStorage.addGame('1. Nf3 d5 2. d4 c5 3. c4 cxd4 4. cxd5 Nf6 5. Qxd4 Qxd5 6. Nc3 Qxd4 7. Nxd4 a6 8. Bf4 Nbd7 9. Bc7 e6 10. a3 Be7 11. g3 Ra7 12. Bg2 b6');
+    SERVER.gameStorage.addGame('1. Nf3 Nf6 2. c4 g6 3. Nc3 Bg7 4. e4 d6 5. d4 O-O 6. Be2 e5 7. O-O Nc6 8. d5 Ne7 9. Ne1 Nd7 10. Be3 f5 11. f3 f4 12. Bf2 g5 13. Nd3 Nf6');
+
+  }, 2000);
+
+  
+
+  
+
+
+ /* var parser = new PGNParser(new Chess());
+  var toPGN  = new DoneGameHandler(new Chess());
+
+  var positions = parser.parseSinglePGN('1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6');
+  console.log(positions);
+
+  decorateWithRandomEvals(positions);
+
+  console.log(toPGN.getPGNFromPositions({positions: positions}));
+
+
+  var positions = parser.parseMultiplePGNs('1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6|1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1', '|');
+  console.log(positions);  */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  ////////////////////////////
+  /// SERVER SIDE UP
+
+  /// CLIENT SIDE DOWN
+  ////////////////////////////
+
+  /// VIEWS
+
+var NotificationsBar = function($el) {
+
+  var NOTIFICATION_TYPES = ['danger', 'warning', 'success', 'info'];
+  this.$el = $el;
+  this.notificationHistory = [];
+
+  this.screenQueue = [];
+  this.screenFull;
+
+  this.currentIsVolatile;
+
+
+  this.newNotification = function(msg, isVolatile) {
+
+    if (NOTIFICATION_TYPES.indexOf(msg.tag) === -1) {
+      // Not supported notification
+      return false;
+    }
+    console.log("NEW NOT AGAIN");
+    console.log(msg);
+    console.log(isVolatile);
+
+    if (isVolatile) {
+      console.log("VOLATILE MSG");
+      if (!this.screenFull) {
+        // Push straigh away
+        this.showOnScreen(msg);
+      }
+      return;
+    }
+
+    console.log("NOTIFICATION RECE");
+    console.log(msg);
+
+
+
+    this.notificationHistory.unshift({time: Date.now(), msg: msg});
+
+    if (this.screenQueue.length > 3) {
+      // Too much traffic on notification panel
+      return true;
+    }
+
+    this.screenQueue.push(msg);
+    this.checkQueue();
+
+  }
+
+  this.checkQueue = function() {
+    console.log("NOTIFICATIONS: Checking queue");
+
+    if (this.screenFull) {
+      return;
+    }
+    var l = this.screenQueue.length;
+    if (l > 0) {
+      var msg = this.screenQueue.shift();
+      this.showOnScreen(msg);
+      this.screenFull = true;
+      setTimeout(function() {
+        this.screenFull = false;
+        this.removeFromScreen();
+        this.checkQueue();
+      }.bind(this), 5000 / (l+1) + 1000);
+    }
+  }
+
+  this.removeFromScreen = function() {
+    this.$el.empty();
+  }
+
+  this.showOnScreen = function(msg) {
+    console.log("TO SCREEN:" + msg.tag);
+    var alertDiv = '<div class="alert alertCentered alert-' + msg.tag.toLowerCase() + '" role="alert" style="height: 30px; padding-top: 6px;">' + msg.content + '</div>';
+    this.$el.empty().append(alertDiv);
+  }
+
+
+  $(distChess.notificationsChannel).on('notification', function(e, msg, isVolatile) {
+
+    this.newNotification(msg, isVolatile);
+  }.bind(this));
+
+}
+
+  var ViewController = function(arrayOfViews) {
+
+    // array elem = {name: 'name', elem: jQuery_obj};
+
+    this.arrayOfViews = arrayOfViews || [];
+
+    this.doesExists = function(viewName) {
+
+      for (var i = this.arrayOfViews.length - 1; i >= 0; i--) {
+        if (this.arrayOfViews[i].name === viewName) return true;
+      }
+      $(distChess.errorLogger).trigger('notification', ['VIEW CONTR.: View not found by name: ' + viewName]);
+      return false;
+
+    }
+
+    this.showThisHideOther = function(viewName) {
+
+      for (var i = this.arrayOfViews.length - 1; i >= 0; i--) {
+        if (this.arrayOfViews[i].name === viewName) {
+          console.log("SHOWING VIEW");
+          console.log(this.arrayOfViews[i].elem);
+          this.arrayOfViews[i].elem.show();
+        }
+        else {
+          this.arrayOfViews[i].elem.hide(); 
+        } 
+      }
+      $(distChess.generalLogger).trigger('notification', ['VIEW CONTR: View changed to: ' + viewName]);
+
+    }
+
+    this.changeView = function(name) {
+
+      if (this.doesExists(name)) {
+        console.log("VIEW FOUND");
+        this.showThisHideOther(name);
+        return true;
+      }
+      return false;
+    }
+
+    // State change is triggered internally whenever application goes into new logical state.
+    $(distChess).on('stateChange', function(e, oldStateName, newStateName) {
+      console.log("SWTICHING VIEW: " +  oldStateName + " -> " + newStateName);
+      // State change forces state's main view into screen whether user wants so or not!
+      this.changeView(newStateName);
+    }.bind(this));
+
+    // View change is triggered whenever user clicks on side bar buttons
+    $(distChess).on('viewChange', function(e, viewName) {
+      this.changeView(viewName);
+    }.bind(this));
+
+  }
+
+
+
+
+  /// STATES
+
+
+var StateController = function() {
+
+  this.states = {};
+  this.transits = {};
+
+  this.currentState = 0;
+
+  this.initToState = function(state) {
+    this.currentState = state;
+    $(distChess).trigger('stateChange', [0, this.currentState.name]);
+  }
+
+  this.addState = function(state) {
+
+    var name = state.name;
+    console.log("ADDING STATE: " + name);
+    this.states[name] = state;
+    $(distChess.buildLogger).trigger('notification', ['STATE CONTR: State added: ' + name]);
+  }
+
+  this.addOneWayTransit = function(from, to) {
+
+    // Initialize if not present yet
+    if (!this.transits.hasOwnProperty(from.name)) {
+      this.transits[from.name] = [];
+    }
+    // Add if does not exist already
+    if (this.transits[from.name].indexOf(to.name) === -1) {
+      this.transits[from.name].push(to.name);
+      $(distChess.buildLogger).trigger('notification', ['STATE CONTR: Transit added: ' + from.name + " -> " + to.name]);
+    }
+    return true;
+
+  }
+
+  this.addTwoWayTransit = function(s1, s2) {
+
+    this.addOneWayTransit(s1, s2);
+    this.addOneWayTransit(s2, s1);
+    return true;
+  }
+
+  this.doTransit = function(to) {
+
+    console.log(to);
+
+    // Argument must be valid and currentState must be inited before
+    if (!to || !to.hasOwnProperty('name') || !this.currentState) {
+      $(distChess.errorLogger).trigger('notification', ['STATE CONTR: State transit failed']);
+      return false;
+    }
+
+    if (this.transits[this.currentState.name].indexOf(to.name) === -1) {
+      //////
+      ////alert("Transit failed: " + this.currentState.name + " -> " + to.name);
+      $(distChess.errorLogger).trigger('notification', ['STATE CONTR: State transit does not exist: ' + this.currentState.name + " -> " + to.name]);
+      return false;
+    }
+    console.log("STATE CHANGING");
+    var oldState = this.currentState;
+    this.currentState = to;
+    oldState.onStateEnd();
+    to.onStateStart();
+
+    $(distChess).trigger('stateChange', [oldState.name, to.name]);
+    return true;
+  }
+
+  $(distChess).on('sleepMode', function() {
+    //////
+    ////alert("Sleep mode turning on");
+    this.doTransit(this.states['analysisEnded']);
+
+  }.bind(this));
+
+  $(distChess).on('suggestStateChange', function(e, name) {
+
+    if (this.states.hasOwnProperty(name)) {
+      this.doTransit(this.states[name]);
+      return true;
+    }
+
+    $(distChess.errorLogger).trigger('notification', ['STATE CONTR: State change suggestion ignored - no state for name: ' + name]);
+    return false;
+
+  }.bind(this));
+
+  $(distChess).on('continueAnalysis', function() {
+
+    // Want to go analysisOn state
+    console.log("Continue analysis");
+    this.doTransit(this.states['analysisOn']);
+
+  }.bind(this));
+
+  $(distChess).on('endAnalysis', function() {
+
+    this.doTransit(this.states['analysisEnded']);
+  }.bind(this));
+
+  $(distChess).on('openLog', function() {
+
+    if (this.currentState.hasOwnProperty('preventSideBarMoving') && this.currentState.preventSideBarMoving === true) {
+      return false;
+    }
+    $(distChess).trigger('viewChange', ['logView']);
+
+  }.bind(this));
+
+  $(distChess).on('openStats', function() {
+
+    if (this.currentState.hasOwnProperty('preventSideBarMoving') && this.currentState.preventSideBarMoving === true) {
+      return false;
+    }
+    $(distChess).trigger('viewChange', ['statsView']);
+
+  }.bind(this));
+
+  $(distChess).on('openMain', function() {
+
+    $(distChess).trigger('viewChange', [this.currentState.name]);
+
+  }.bind(this));
+
+}
+
+  var AnalysisOnState = function() {
+
+    this.name = 'analysisOn';
+
+    this.onStateStart = function() {
+      $(distChess).trigger('autoAnalysisToggle', [true]);
+      $(distChess).trigger('startAnalysing');
+    }
+
+    this.onStateEnd = function() {
+      ////
+      ////alert("Analysis stopping");
+      $(distChess).trigger('stopAnalysing');
+    }
+  }
+
+  var AskState = function() {
+
+    this.intervalHandle = 0;
+    this.name = 'askUser';
+
+    this.preventSideBarMoving = true;
+
+    // Overriding the inherited (prototype's corresponding method)
+    this.onStateStart = function() {
+
+      var counter = 5;
+
+      this.intervalHandle = setInterval(function() {
+        if (counter <= 0) {
+          clearInterval(this.intervalHandle);
+          this.intervalHandle = 0;
+          $(distChess).trigger('suggestStateChange', ['analysisOn']);
+        }
+        $(distChess).trigger('askUserCounterUpdate', [counter--]);
+
+      }.bind(this), 1000);
+
+
+    }
+
+    this.onStateEnd = function() {
+
+      if (this.intervalHandle) {
+        clearInterval(this.intervalHandle);
+        this.intervalHandle = 0;
+      }
+    }
+  }
+
+  var AnalysisEndedState = function() {
+
+    this.name = 'analysisEnded';
+    // No ops for now
+    this.onStateStart = function() {
+
+    }
+
+    this.onStateEnd = function() {
+
+    }
+  }
+
+  var AnalysisSuspendedState = function() {
+   
+    this.name = 'analysisSuspended';
+
+    this.onStateStart = function() {
+
+    }
+
+    this.onStateEnd = function() {
+
+    }
+
+  }
+
+
+  var GeneralButtonListener = function($mainArea) {
+
+    this.dispatchButtonClick = function(tag) {
+
+      console.log("BUTTON CLICK");
+
+      // Log button click or something - not used for now
+      if (tag && tag !== '') {
+        $(distChess).trigger(tag);
+      }
+
+
+    }
+
+    this.dispatchThreadClick = function(id) {
+
+      // Inform world we have a thread switch clicked
+
+      // First we need to verify thread for given exists. That information is known only to WorkerController, so send Deferred to him.
+      // He can then either resolve or reject it depending whether thread is there or not
+      var deferred = $.Deferred();
+      deferred.promise().done(function(id, fen) {
+        console.log("PROMISE FULFILLED: " + id + ", " + fen);
+        $(distChess).trigger('threadUIChange', [id, fen]);
+      });
+
+      $(distChess).trigger('verifyThreadExists', [id, deferred]);
+
+    }
+
+    this.dispatchLIClick = function(tag) {
+
+      // Log LI click or something
+      if (tag && tag !== '') {
+        $(distChess).trigger(tag);
+      }
+    }
+
+    this.dispatchGeneralClick = function(tag) {
+      // No op for now
+    }
+
+    $mainArea.on('click', function(e) {
+
+      console.log(e.target.tagName.toUpperCase());
+      var $target = $(e.target);
+
+      var tag = $target.attr('data-dispatch');
+
+      if (e.target.tagName.toUpperCase() === 'BUTTON') {
+        return this.dispatchButtonClick(tag);
+      }
+
+      else if (e.target.tagName.toUpperCase() === 'LI') {
+
+        if ($target.attr('data-liType') === 'threadSwitch') {
+          // Thread switch click
+          return this.dispatchThreadClick($target.attr('data-threadID'));
+        }
+        // Sidebar click, most probably
+        return this.dispatchLIClick(tag);
+      }
+
+      else {
+        return this.dispatchGeneralClick(tag);
+      }
+    }.bind(this));
+
+
+  }
+
+
+  var BoardViewer = function($elem, $idleMsg, chessBoardInstance) {
+
+    this.$elem = $elem;
+    this.$idleMsg = $idleMsg;
+    this.$autoButton = $('#autoAnalysisToggle'); // This is not part of elem, so fetching it here breaks encapsulation. Consider REFACTOR
+    this.chessBoard = chessBoardInstance;
+
+    this.isActive = true;
+
+    this.currentThread = 1;
+
+    this.enableBoards = function() {
+      this.isActive = true;
+    }
+
+    this.disableBoards = function() {
+      this.isActive = false;
+    }
+
+    this.setThread = function(id) {
+      this.currentThread = id;
+    }
+
+    this.updateAutoAnalysisButton = function(e, isOn) {
+
+      //alert("UPDATING AUTO ANALYSIS BTN: " + isOn);
+
+      if (isOn === true) {
+        //alert('TO TRUE');
+        this.$autoButton.empty().append("Auto-analysis ON");
+        this.$autoButton.removeClass('btn-danger').addClass('btn-success');
+      }
+
+      else if (isOn === false) {
+        //alert('TO FALSE');
+        this.$autoButton.empty().append("Auto-analysis OFF");
+        this.$autoButton.removeClass('btn-success').addClass('btn-danger');        
+      }
+
+      //alert('OFF');
+    }
+
+    this.updateBoard = function(fen) {
+
+      this.$idleMsg.hide(); // Hide fucking everytime, you know... just in case
+      console.log("UPDATING ANALYSIS BOARD: " + fen);
+      var fenPosition = fen.split(" ")[0];
+      //////
+      ////alert(fenPosition);
+      this.chessBoard.position(fenPosition);
+    }
+
+    this.idleBoard = function() {
+
+      console.log("IDLING THREAD SHOWN IN UI BOARD");
+      this.chessBoard.clear();
+      this.$idleMsg.show();
+    }
+
+    $(distChess).on('positionAnalysisStarted', function(e, id, fen) {
+      //////
+      ////alert(id + " | " + this.currentThread + " | " + fen);
+      if (parseInt(id) === parseInt(this.currentThread)) {
+        // Update UI Board
+        this.updateBoard(fen);
+      }
+
+    }.bind(this));
+
+    $(distChess).on('threadGoesIdle', function(e, id) {
+      if (parseInt(id) === parseInt(this.currentThread)) {
+        // Empty board, show idle message
+        this.idleBoard();
+      }
+
+    }.bind(this));
+
+    $(distChess).on('threadUIChange', function(e, id, fen) {
+      // No need to check anything; this is non-invasive operation simply affecting UI
+      this.setThread(id);
+
+      if (!fen) {
+        this.idleBoard();
+      }
+      else {
+        this.updateBoard(fen);
+      }
+      
+    }.bind(this));
+
+    $(distChess).on('autoAnalysisChanged', this.updateAutoAnalysisButton.bind(this));
+  } 
+
+  var ThreadUI = function($UL) {
+
+    this.$elem = $UL;
+
+    this.getHTMLForElement = function(id) {
+
+      return '<li class="threadUI btn btn-danger" data-dispatch="changeThreadInUI" data-liType="threadSwitch" data-threadID="' + id + '">' + id + '</li>';
+    }
+
+    // Consider abstracting loop out of the next three (or at least two) functions
+    // On the other hand, whats the point... it just obfuscates reading code
+    this.flashToIdle = function(id) {
+
+      var lis = this.$elem.find('li');
+
+      $.each(lis, function(index, li) {
+        li = $(li);
+
+        if (li.attr('data-threadID') == id) {
+          li.removeClass('btn-success').addClass('btn-danger');
+          return false; // Breaks out of loop
+        }
+      });
+
+    }
+
+    this.flashToRunning = function(id) {
+
+      var lis = this.$elem.find('li');
+
+      $.each(lis, function(index, li) {
+        li = $(li);
+
+        if (li.attr('data-threadID') == id) {
+          li.removeClass('btn-danger').addClass('btn-success');
+          return false; // Breaks out of loop
+        }
+      });
+
+    }
+
+    this.updateThreadLights = function(id) {
+
+      console.log("THREADS UI: Updating thread lights. Lid is: " + id);
+
+      var lis = this.$elem.find('li');
+
+      $.each(lis, function(index, li) {
+        console.log(li);
+        li = $(li);
+        if (li.attr('data-threadID') == id) {
+          
+          console.log("FOUND THREAD UI");
+          li.removeClass( "dimThread" ).addClass( "lidThread" );
+        }
+        else {
+          li.removeClass( "lidThread" ).addClass( "dimThread" );
+        }
+      });
+
+      console.log("POIS THREAD LIGHTS");
+
+    }
+
+    this.initThreadUI = function(threadIDs) {
+
+      // threadIDs = [1,2,3,4,5,...];
+
+      var html = '';
+
+      for (var i = threadIDs.length-1; i >= 0; i--) {
+        var id = threadIDs[i];
+        html += this.getHTMLForElement(id);
+      };
+
+      console.log("THREAD UI ELEMENTS INITIALIZED");
+      this.$elem.append(html);
+
+    }
+
+    $(distChess).on('threadsInitialized', function(e, ids) {
+      this.initThreadUI(ids);
+    }.bind(this));
+
+    $(distChess).on('threadUIChange', function(e, id, fen) {
+      this.updateThreadLights(id);
+
+    }.bind(this));
+
+    $(distChess).on('threadGoesIdle', function(e, id) {
+      this.flashToIdle(id);
+    }.bind(this));
+
+    $(distChess).on('positionAnalysisStarted', function(e, id) {
+      this.flashToRunning(id);
+    }.bind(this));
+
+  }
+
+
+
+
+
+
+
+
+
+
+  /// BUILDING THE APP
+  var distChess = {};
+  distChess.notificationsChannel = {};
+
+  $(document).ready(function() {
+
+ 
+
+
+    // Later, move all constructors into constructor namespace inside distChess!
+
+    // Later, namespace all jQuery element searches under "appArea"!
+    distChess.errorLogger = new ErrorLogger();
+    distChess.generalLogger = new GeneralLogger();
+    distChess.buildLogger = new BuildLogger();
+    distChess.workerLogger = new WorkerLogger();
+    distChess.positionLogger = new PositionLogger();
+    distChess.networkLogger = new NetworkLogger();
+    distChess.loggerUI = new LoggerUI({
+      error: distChess.errorLogger, 
+      general: distChess.generalLogger, 
+      build: distChess.buildLogger, 
+      worker: distChess.workerLogger, 
+      position: distChess.positionLogger,
+      network: distChess.networkLogger
+    }, $('#logView'));
+
+    distChess.notificationsBar = new NotificationsBar($('#notificationsBar'));
+
+    distChess.net = new Net({'testing': false});
+
+    distChess.stateController = new StateController();
+    distChess.viewController = new ViewController([
+      {name: 'askUser', elem: $('#askUserView')},
+      {name: 'analysisOn', elem: $('#analysisOnView')},
+      {name: 'logView', elem: $('#logView')},
+      {name: 'statsView', elem: $('#statsView')},
+      {name: 'analysisEnded', elem: $('#endedView')}
+    ]);
+
+    var askUserState = new AskState();
+    var analysisState = new AnalysisOnState();
+    var analysisEndedState = new AnalysisEndedState();
+    var analysisSuspendedState = new AnalysisSuspendedState();
+
+
+
+    // Building up app's state machine
+    distChess.stateController.addState(askUserState);
+    distChess.stateController.addState(analysisState);
+    distChess.stateController.addState(analysisSuspendedState);
+    distChess.stateController.addState(analysisEndedState);
+
+    // Defining legal transitions between states
+    distChess.stateController.addTwoWayTransit(askUserState, analysisState);
+    distChess.stateController.addTwoWayTransit(analysisState, analysisSuspendedState);
+    distChess.stateController.addOneWayTransit(askUserState, analysisEndedState);
+    distChess.stateController.addTwoWayTransit(analysisEndedState, analysisState);
+
+    // Set initial state
+    distChess.stateController.initToState(analysisEndedState);
+
+    // UI element containers
+    distChess.boardViewer = new BoardViewer($("#analysisBoardArea"), $('#idleMsg'), new ChessBoard('boardElem', {
+      moveSpeed: 0,
+      snapbackSpeed: 0,
+      snapSpeed: 0,
+      position: 'start'}));
+    distChess.threadUI = new ThreadUI($("#threadsUL"));
+
+    // Main control flow handling 
+    // PositionController keeps list of positions (batch = set of positions)
+    // WorkerController polls PositionController whenever worker thread needs new job
+    distChess.positionController = new BatchController(distChess.net);
+    distChess.workerController = new WorkerController(4, 10, distChess.positionController);
+    distChess.workerController.initWorkers();
+
+    //distChess.nodeEvaluator = new NodeEvaluator(distChess.workerController);
+
+
+    distChess.listener = new GeneralButtonListener($('#appArea'));
+
+/*    var batch = new Batch(1);
+    batch.addPosition({game: 1782382, lastMove: 'e5', lastMoveNumber: 12, fen: '8/1k6/4N2P/2q5/4K3/p7/8/7N w - - 0 1'});
+    batch.addPosition({game: 1782383, lastMove: 'Nf6', lastMoveNumber: 7, fen: '8/1k6/4N2P/2q5/4K3/p7/8/8 w - - 0 1'});
+    batch.addPosition({game: 1782384, lastMove: 'e6', lastMoveNumber: 23, fen: '8/1k6/4N2P/2q5/4K3/p7/8/8 w - - 0 1'});
+    batch.addPosition({game: 1782385, lastMove: 'e5', lastMoveNumber: 17, fen: '8/1k6/4N2P/2q5/4K3/p7/8/8 b - - 0 1'});
+    batch.addPosition({game: 1782386, lastMove: 'f5', lastMoveNumber: 52, fen: '8/1k6/4N2P/2q5/4K3/p7/8/8 b - - 0 1'});
+
+    distChess.positionController.addBatch(batch);*/
+
+
+
+
+    //distChess.workerController.turnAnalysisOn();
+
+/*
+    setTimeout(function() {
+      distChess.workerController.turnAnalysisOff();
+    }, 5000);
+*/    
+  });
+
+
+
+ 
+
+  // BUILDING ENDS
+
+
+
+/*var NodeEvaluator = function(workerController) {
+
+  this.workerController = workerController;
+  this.workerInstance = new Worker('stockfish.js');
+
+  this.currentEngineString;
+  this.currentPosition;
+
+  this.waitingQueue = [];
+
+  this.evaluateNodesOfBatch = function(batch) {
+
+    var positions = batch.getPositions();
+
+    
+
+
+
+
+
+
+  }
+
+  this.evaluateComplexity = function(nodesNum) {
+
+    // Depth is four
+    if (nodesNum < 400) {
+      return 1;
+    }
+    else if (nodesNum < 800) {
+      return 2;
+    }
+    else if (nodesNum < 1600) {
+      return 3;
+    }
+    else {
+      return 4;
+    }
+    
+
+  }
+
+  this.evaluateEngineString = function() {
+
+    if (this.currentEngineString) {
+
+      var parts = this.currentEngineString.split(' ');
+      var nodesIdx = parts.indexOf('nodes');
+
+      if (nodesIdx === -1) {
+        $(distChess.errorLogger).trigger('notification', ['Could not evaluate node amount: Keyword nodes not found']);
+      }
+
+      var nodesAmount = parts[nodesIdx+1];
+      var complexity  = this.evaluateComplexity(nodesAmount);
+
+
+
+    }
+  }
+
+  this.workerInstance.addEventListener('message', function(msg) {
+
+    if (msg.indexOf('nodes') !== -1) {
+      this.currentEngineString = msg;
+      return;
+    }
+
+    if (msg.indexOf('bestmove') !== -1) {
+      this.evaluateEngineString();
+      return;
+    }
+
+  });
+}
+
+
+*/
+
+
+
+
+
+
+var LoggerUI = function(logChannels, $elem) {
+
+  this.logChannels = logChannels || {};
+  this.$elem = $elem;
+
+  this.$UL = $elem.find('ul');
+
+  this.currentChannel = 0;
+
+  this.showWorkerLogs = function() {
+    this.currentChannel = logChannels['worker'];
+    this.updateUI();
+  }
+  this.showNetLogs = function() {
+    this.currentChannel = logChannels['network'];
+    this.updateUI();
+  }
+  this.showPositionLogs = function() {
+    this.currentChannel = logChannels['position'];
+    this.updateUI();
+  } 
+
+  this.switchChannel = function(channel) {
+
+    if (this.logChannels.hasOwnProperty(channel)) {
+      this.currentChannel = logChannels[channel];
+      $(distChess.generalLogger).trigger('notification', ['Log channel switched', channel]);
+    }
+    
+  }
+
+  this.updateUI = function() {
+
+    if (this.currentChannel) {
+      ////
+      ////alert("LOG CHANNEL FOUND");
+      var logs = this.currentChannel.getLogs();
+      var html = '';
+
+      for (var i = 0, l = logs.length; i < l; i++) {
+        html += '<li>' + logs[i].msg + '</li>';
+      };
+
+      html += '';
+
+      this.$UL.empty().append(html);
+/*
+      if (this.currentChannel.hasOwnProperty('getTotalTime')) {
+        var time = this.currentChannel.getTotalTime();
+        this.$elem.append('<h3>Total computation time taken by threads: ' + time + '</h3>');
+      }*/
+
+
+    }
+  }
+
+  this.currentChannel = this.logChannels.position;
+
+  $(distChess).on('viewChange', function(e, viewName) {
+    if (viewName === 'logView') {
+      //////
+      ////alert("Updating log UI");
+      this.updateUI();
+    }
+  }.bind(this));
+
+  $(distChess).on('logTypeToPosition', this.showPositionLogs.bind(this));
+  $(distChess).on('logTypeToNet', this.showNetLogs.bind(this));
+  $(distChess).on('logTypeToWorker', this.showWorkerLogs.bind(this));
+}
+// These x loggers should probably use same prototype
+var NetworkLogger = function() {
+
+  this.notifications = [];
+  this.name = 'network';
+
+  // Prototype methods
+  this.log = function(e, msg, data) {
+    var msg = "<span class='sender" + msg.sender + "'>" + msg.sender.toUpperCase() + "</span>" + msg.content;
+    this.notifications.unshift({msg: msg, rawMsg: msg.content, type: 'notification', sender: msg.sender, data: data, timestamp: Date.now()});
+    if (this.notifications.length > 100) this.notifications.pop();
+  }
+
+  this.getLogs = function() {
+    return this.notifications.slice(0);
+  }
+
+  // Instance method
+  $(this).on('notification', this.log.bind(this));
+}
+
+var BuildLogger = function() {
+
+  this.notifications = [];
+  this.name = 'build';
+
+  // Prototype methods
+  this.log = function(e, msg, data) {
+    this.notifications.push({msg: msg, type: 'notification', data: data, timestamp: Date.now()});
+  }
+
+  this.getLogs = function() {
+    return this.notifications.slice(0);
+  }
+
+  // Instance method
+  $(this).on('notification', this.log.bind(this));
+}
+
+var PositionLogger = function() {
+
+  this.notifications = [];
+  this.name = 'position';
+
+  // Prototype methods
+  this.log = function(e, halfmove, fen, duration) {
+    var msg = "<span class='spanFen'>" +fen+"</span> | " + duration + " ms";
+    this.notifications.unshift({msg: msg, type: 'notification', data: {halfmove: halfmove, fen: fen, duration: duration}, timestamp: Date.now()});
+    if (this.notifications.length > 100) this.notifications.pop();
+  }
+
+  this.getLogs = function() {
+    return this.notifications.slice(0);
+  }
+
+  // Instance method
+  $(this).on('notification', this.log.bind(this));
+}
+
+var WorkerLogger = function() {
+
+  this.notifications = [];
+  this.name = 'worker';
+
+  // Prototype methods
+  this.log = function(e, msg, duration) {
+    var msgString = "<span class='spanHeadline'>" + msg.sender.toUpperCase() + "</span>" + msg.content;
+    this.notifications.unshift({msg: msgString, rawMsg: msg.content, sender: msg.sender, type: 'notification', data: duration, timestamp: Date.now()});
+    if (this.notifications.length > 100) this.notifications.pop();
+  }
+
+  this.getLogs = function() {
+    return this.notifications.slice(0);
+  }
+
+  this.getTotalTime = function() {
+    return this.notifications.reduce(function(prev, curr) {
+      return prev + curr.data;
+    }, 0);
+    
+  }
+
+  // Instance method
+  $(this).on('notification', this.log.bind(this));
+}
+
+var GeneralLogger = function() {
+
+  this.notifications = [];
+  this.name = 'general';
+
+  // Prototype methods
+  this.log = function(msg, data) {
+    this.notifications.unshift({msg: msg, type: 'notification', data: data.toString(), timestamp: Date.now()});
+    if (this.notifications.length > 100) this.notifications.pop();
+  }
+
+  this.getLogs = function() {
+    return this.notifications.slice(0);
+  }
+
+  // Instance method
+  $(this).on('notification', this.log.bind(this));
+}
+
+var ErrorLogger = function() {
+
+  this.notifications = [];
+  this.name = 'error';
+
+  this.log = function(msg, data) {
+    this.notifications.unshift({msg: msg, type: 'error', data: data.toString(), timestamp: Date.now()});
+    if (this.notifications.length > 100) this.notifications.pop();
+  }
+
+  this.getLogs = function() {
+    return this.notifications.slice(0);
+  }
+
+  // Instance method
+  $(this).on('notification', this.log.bind(this));
+}
+
+
+
+
+// Note - Batch Controller does not need to have link to Worker Controller as Worker Contr. asks for positions independently!
+var BatchController = function(net) {
+
+  this.autoAnalysis = true;
+
+  this.net = net;
+
+  this.batchQueue = [];
+
+  this.addBatch = function(batch) {
+    this.batchQueue.push(batch);
+    batch.recordAddTime();
+  }
+
+  this.batchIsDone = function(batch) {
+
+    batch.recordDuration();
+    console.log("BATCH IS DONE");
+    console.log(batch);
+
+    // Stats -module and Net-module at least should listen for this
+    $(distChess).trigger('batchIsCompleted', [batch]);
+
+    // Actually, lets push it straight to net
+    this.net.sendResults(batch);
+
+    if (this.batchQueue.length === 0) {
+      // We need more stuff for workers to analyse, so request from server
+      // Wait a bit first so that user can here stop analysing
+      setTimeout(function() {
+        $(distChess).trigger('suggestStateChange', ['askUserForAdditionalAnalysing']);
+      }, 0);
+    }
+  }
+
+  this.getBatchByID = function(id) {
+    console.log("CHECKING BATCH QUEUE FOR ID: " + id);
+
+    for (var i = this.batchQueue.length - 1; i >= 0; i--) {
+      if (this.batchQueue[i].id === id) {
+        console.log("BELOW THE BATCH FOUND IN QUEUE");
+        console.log(this.batchQueue[i]);
+        return this.batchQueue[i];
+      }
+    };
+    return false;
+  }
+
+  this.validateBatch = function(batch) {
+    // Lets say its valid. For now.
+    return true;
+  }
+
+  this.autoAnalysisToggled = function(e, forceSet) {
+
+    if (forceSet !== undefined) {
+      this.autoAnalysis = !!forceSet;
+    }
+    else {
+      this.autoAnalysis = !this.autoAnalysis;
+    }
+
+    $(distChess).trigger('autoAnalysisChanged', [this.autoAnalysis]);
+  }
+
+  this.getPositionForAnalysis = function() {
+
+
+    var currentBatch = this.batchQueue[0];
+
+    if (!currentBatch) {
+      $(distChess).trigger('openPositionsLeft', [0]);
+      // No batches anymore -> should go fetch new ones from server
+      // Access server here - we only fetch if autoAnalysis is on
+      if (this.autoAnalysis) {
+        this.net.requestBatch(); // Server responds one day, hopefully. 
+      }
+      
+      return 0; // For now we just fucking bail and inform Workers synchronously that there is no batches available.
+    }
+
+    $(distChess).trigger('openPositionsLeft', [currentBatch.numOfOpenPositions()]);
+
+    if (currentBatch.hasOpenPositions()) {
+      var pos = currentBatch.getPosition();
+      $(distChess.generalLogger).trigger('notification', ['POS. CONTROLLER: Handing out position', pos.id]);
+      return pos;
+    }
+
+    else {
+
+      if (currentBatch.hasPendingPositions()) {
+        // Need to let pending positions finish first before we can safely just drop this fucker.
+        return;
+      }
+      // BATCH IS DONE FOR GOOD!
+      console.log("_______________________________");
+      console.log("BATCH IS DONE -> REMOVING BATCH");
+      console.log("_______________________________");
+      this.batchQueue.shift(); // Same batch as currentBatch, so no need to catch the shifted element
+      // Async calling so that Worker Controller can get its return value first
+      // I forgot why this must be so, but probably there was some half-assed reason.
+      setTimeout(function() {
+        this.batchIsDone(currentBatch);
+      }.bind(this), 0);
+
+      // Return 0 to indicated that nothing can be done for now
+      return 0;
+    }
+  }
+
+  this.processArrivingEvaluation = function(resultPosition) {
+    console.log("RESULT POSITION PROCESS STARTS:");
+    console.log(resultPosition);
+    var batchID = resultPosition.batchID;
+    var batch = this.getBatchByID(batchID);
+
+    if (batch) {
+      batch.confirmPosition(resultPosition);
+    }
+    else {
+      console.log("BATCH ERROR: Evaluated position contained batch ID that is not found");
+    }
+
+  }
+
+  $(distChess).on('batchReceivedFromServer', function(e, batch) {
+
+    if (this.validateBatch(batch)) {
+      console.log("BATCH CONTR: Adding received batch to queue");
+      return this.addBatch(batch);
+    }
+    console.log("BATCH CONTR: Batch received but its corrupted. Bailing.");
+  }.bind(this));
+
+  $(distChess).on('positionEvaluated', function(e, resultPosition) {
+    console.log("BATCH CONTR: Done position arrived");
+    this.processArrivingEvaluation(resultPosition);
+
+
+  }.bind(this));
+
+  $(distChess).on('autoAnalysisToggle', this.autoAnalysisToggled.bind(this));
+
+  $(distChess).trigger('autoAnalysisChanged', [this.autoAnalysis]);
+
+
+}
+
+var WorkerController = function(numOfWorkers, depth, positionController) {
+
+  this.positionController = positionController;
+  this.num = numOfWorkers || 1;
+  this.depth = depth;
+
+  this.workerDoneCounters = {};
+
+  this.workers = {};
+
+  this.checkerIntervalHandle = 0;
+
+  this.checkAndAddEvaluation = function(workerID, msg) {
+
+    var fenParts = this.workers[workerID].currentPosition.fen.split(" ");
+    var multiplier = 1; // For standardizing evaluation so that its always from white's point of view
+
+    if (fenParts[1] === 'b') {
+        multiplier *= -1;
+    }
+
+    console.log(msg);
+
+    var arr = msg.split(" ");
+    var idx = arr.indexOf('score');
+
+    // Score should be in fifth place in the splitted array
+    if (idx === 5) {
+      var mateIdx = arr.indexOf('mate');
+      if (mateIdx !== -1) {
+        var mateRet = arr[mateIdx+1];
+        mateRet = mateRet > 0 ? 1 : -1;
+        this.workers[workerID].currentPosition.evaluation = mateRet * multiplier * 9999;
+        return true;
+      }
+      // Score found, update current evaluation of position
+      this.workers[workerID].currentPosition.evaluation = multiplier * arr[7];
+      return true;
+    }
+    // Msg did not contain score, dump it
+    return false;
+  }
+
+  this.checkForBestMove = function(msg) {
+
+    var parts = msg.split(' ');
+
+    if (msg.indexOf('bestmove') === 0) {
+      return parts[1];
+    }
+
+    return false;
+  }
+
+  this.msgFromWorker = function(id, worker, e) {
+
+    var addLatestEvaluation = this.checkAndAddEvaluation(id, e.data);
+    var hasBestMove = this.checkForBestMove(e.data);
+
+    // If bestmove was present, analysis for the position is done. Best evaluation is already saved into position object.
+    if (hasBestMove !== false) {
+      
+      console.log(e.data);
+      
+
+      // Worker is done with the position
+      var worker = this.workers[id];
+      var resultPosition = worker.currentPosition;
+
+      //Decorate result position
+      resultPosition.bestMove = hasBestMove;
+
+      // Timing is recorded
+      var duration = Date.now() - worker.latestStart;
+      resultPosition.duration = duration;
+      worker.latestDuration   = duration;
+
+      $(distChess.workerLogger).trigger('notification', [{sender: "Worker #" + id, content: "Position analysed in <strong>" + (Math.floor(duration/100)) / 10 + "</strong> secs"}, duration]);
+
+      worker.currentPosition = 0;
+      worker.currentCount++;
+      //resultPosition.evaluation = evaluation;
+
+      console.log("Best evaluation: " + resultPosition.evaluation);
+      console.log(resultPosition);
+
+      // Notify the world of this joyous event
+      $(distChess.generalLogger).trigger('notification', ['WORKER CONTR: Position done from worker: ' + id]);
+      $(distChess).trigger('positionEvaluated', [resultPosition]);
+      $(distChess).trigger('threadGoesIdle', [id]);
+
+
+
+    }
+
+
+  }
+
+  this.requestPosition = function() {
+
+    var pos = this.positionController.getNewPosition();
+
+    if (pos) {
+      this.newPositionArrived(pos);
+    }
+
+  }
+
+  this.getIdleWorker = function() {
+
+    for (var key in this.workers) {
+      if (this.workers.hasOwnProperty(key)) {
+        var worker = this.workers[key];
+
+        if (worker.currentPosition === 0) return worker;
+      }
+    }
+    // All bees are busy, nothing to return
+    return 0;
+
+/*    for (var i = this.workers.length - 1; i >= 0; i--) {
+      if (this.workers[i].currentPosition === 0) return this.workers[i];
+    }
+    
+    return 0;*/
+  }
+
+  this.intervalFunction = function() {
+
+      var idle = this.getIdleWorker();
+
+      if (idle !== 0) {
+
+        // We need position for this bumblebee
+        console.log("Requesting position for worker: " + idle.id + " at time: " + Date.now());
+        var pos = this.positionController.getPositionForAnalysis();
+        if (!pos) {
+          // Position was not available which means whole client-side is devoid of anything to analyze. 
+          // However, thats not our (workers) problem - so lets just fucking bail and take a break.
+          return;
+        }
+        // Work is available - lets go!
+        this.startWorking(idle, pos);        
+      }
+      else {
+        console.log("No idle workers - skipping...");
+      }
+
+  }
+
+  this.turnAnalysisOn = function() {
+    // Analysis can simply be stopped by stopping interval - then Worker Controller does not request new positions!
+    if (!this.checkerIntervalHandle) {
+      this.checkerIntervalHandle = setInterval(this.intervalFunction.bind(this), 120);
+    }
+  }
+
+  this.turnAnalysisOff = function() {
+    if (this.checkerIntervalHandle) {
+      clearInterval(this.checkerIntervalHandle);
+      this.checkerIntervalHandle = 0;
+    }
+  }
+
+  this.initWorkers = function() {
+
+    // Dont allow more than 6 threads max
+    if (this.num > 6) {
+      this.num = 6;
+    }
+
+    console.log("INITING WORKERS");
+
+    var i = this.num;
+    var self = this;
+
+    var ids = [];
+
+    while (i > 0) {
+      var id = i;
+      --i;
+      console.log("Creating worker #: " + id);
+      var w = new Worker('stockfish.js');
+      //w.postMessage({tag: 'init', id: i});
+
+      // Must escape closure that takes i by reference, we need copy of i
+      (function(id, worker) {
+
+        worker.addEventListener('message', function(e) {
+          
+          self.msgFromWorker(id, worker, e);
+        });
+
+      })(id, w);
+
+
+      this.workers[id] = {
+        id: id,
+        worker: w,
+        currentPosition: 0,
+        currentCount: 0
+      }
+
+      ids.push(id);
+
+      //this.workersCurrentPositions[id] = 0;
+      //this.workerDoneCounters[id] = 0;
+      
+    }
+
+    this.num = 0; // Remove number so nobody accidentally recreates threads
+    // Broadcast to the world all thread ids
+    $(distChess).trigger('threadsInitialized', [ids]);
+  }
+
+  this.startWorking = function(workerWrapper, position) {
+    console.log("Worker " + workerWrapper.id + " starts working on " + position.fen);
+    if (workerWrapper.currentPosition !== 0) {
+      return false;
+    }
+
+    workerWrapper.currentPosition = position;
+    workerWrapper.latestStart = Date.now();
+    //this.workersCurrentPositions[workerWrapper.id] = position;
+    var fen = position.fen;
+    console.log("SENDING MSGS TO WORKER: " + workerWrapper.id + " with position: " + position.fen);
+    workerWrapper.worker.postMessage('ucinewgame');
+    workerWrapper.worker.postMessage('position fen ' + fen);
+    workerWrapper.worker.postMessage('go depth ' + this.depth);
+
+    console.log("Worker" + workerWrapper.id + " started working");
+    $(distChess).trigger('positionAnalysisStarted', [workerWrapper.id, fen]);
+
+    return true;
+
+  }
+
+  $(distChess).on('startAnalysing', this.turnAnalysisOn.bind(this));
+  $(distChess).on('stopAnalysing', this.turnAnalysisOff.bind(this));
+
+  $(distChess).on('verifyThreadExists', function(e, id, deferred) {
+    if (this.workers.hasOwnProperty(id)) {
+      return deferred.resolve(id, this.workers[id].currentPosition.fen);
+    }
+
+    return deferred.reject();
+
+  }.bind(this));
+
+
+}
+
+
+
+var Net = function(config) {
+
+  this.batchRequestPending = false;
+  this.batchRequestTimeout = 0;
+
+  this.config = config || {};
+
+  this.testBool = false;
+
+    this.requestBatch = function() {
+      if (!this.batchRequestPending) {
+        this.batchRequestPending = true;
+        $(distChess.networkLogger).trigger('notification', [{sender: 'client', content: 'Need more positions for analysing'}]);
+        $(distChess.notificationsChannel).trigger('notification', [{tag: 'warning', content: 'Waiting for positions from server...'}, true]);
+        this.makeRequest('batch', {});
+      
+
+        this.batchRequestTimeout = setTimeout(function() {
+          // Something happened, lets allow resending
+          this.batchRequestPending = false;
+          this.batchRequestTimeout = 0;
+          $(distChess.networkLogger).trigger('notification', [{sender: 'client', content: 'ERROR: Connection to server has timed out'}]);
+        }.bind(this), 8000); // If we don't hear back in 8 seconds, we drop the request and allow resending
+
+      }
+      
+    }
+
+    this.resetBatchRequestWaiter = function() {
+
+      this.batchRequestPending = false;
+      if (this.batchRequestTimeout !== 0) {
+
+        clearTimeout(this.batchRequestTimeout);
+      }
+      this.batchRequestTimeout = 0;
+
+    }
+
+    this.sendResults = function(resultBatch) {
+      
+      $(distChess.networkLogger).trigger('notification', [{sender: 'client', content: 'Send analysed positions to server. Batch id: ' + resultBatch.id + ' | Num of positions: ' + resultBatch.donePositions.length}]);
+      this.makeRequest('results', resultBatch);   
+    }
+
+    this.makeRequest = function(methodName, payload) {
+
+      console.log("NET: Sending out request: " + methodName);
+
+      if (this.config.testing) {
+        // FOR TESTING
+        // Simulating volatile network connection by using random timeout value
+        var timeout = Math.floor(Math.random() * 1000) + 300;
+
+        setTimeout(function() {
+          //
+          ////alert(JSON.stringify(payload));
+          var response = SERVER.api({method: method, payload: JSON.stringify(payload)});
+          this.receiveFromServer(response.tag, response.data);
+        }.bind(this), timeout);
+
+        // Logging for debugging
+        $(distChess.generalLogger).trigger('notification', ['NETWORK: Request sent', method]);
+
+
+      }
+
+      else {
+        // FOR PRODUCTION
+        // WRITE PRODUCTION AJAX CALL HERE
+
+        if (this.testBool) {
+          return;
+        }
+
+        if (methodName === 'results') {
+          
+          //this.testBool = true;
+        }
+        
+        var req = $.ajax({
+          method: "POST",
+          url: "/api",
+          dataType: 'json',
+          data: { data: {method: methodName, payload: JSON.stringify(payload)}}
+        });
+
+        req.done(function(res) {
+          this.receiveFromServer(res.tag, res.data);
+        }.bind(this));
+
+        req.fail(this.serverFail.bind(this));
+          
+
+      }
+
+    }
+
+    this.serverFail = function(jqXHR, reason) {
+
+      $(distChess.networkLogger).trigger('notification', [{sender: 'client', content: 'ERROR: Connection to server has failed'}]);
+      $(distChess.notificationsChannel).trigger('notification', [{tag: 'danger', content: 'NETWORK ERROR: ' + reason}]);
+    }
+
+    this.receiveFromServer = function(type, data) {
+
+      console.log("RECEIVED FROM SERVER!!!!!!!!!!!!!!!!!!!!!!!");
+      console.log(data);
+
+      if (type === 'resultConfirmed') {
+        // Can - for example - show earned points which are brough in data
+        $(distChess.networkLogger).trigger('notification', [{sender: 'server', content: 'Served has confirmed your analyses'}]);
+        $(distChess.notificationsChannel).trigger('notification', [{tag: 'success', content: 'Server has accepted your analyses! Thank you for your cooperation.'}, true]);
+        $(distChess).trigger('serverConfirmedResults');
+      }
+
+      else if (type === 'resultFailed') {
+        $(distChess.networkLogger).trigger('notification', [{sender: 'server', content: 'Error! Served has denied your analyses! Contact administrator if problem persists.'}]);
+        $(distChess.notificationsChannel).trigger('notification', [{tag: 'danger', content: 'Server has rejected your analyses. Contact administrator if problem persists'}]);
+        $(distChess).trigger('serverDeniedResults');
+      }
+
+      else if (type === 'batchForAnalysis') {
+        this.resetBatchRequestWaiter();
+        var batchObj = JSON.parse(data.batch);
+        var clientBatch = new Batch(batchObj.id);
+        clientBatch.openPositions = batchObj.openPositions;
+        $(distChess.networkLogger).trigger('notification', [{sender: 'server', content: 'You have received a new set of fresh positions from server!'}]);
+        $(distChess.notificationsChannel).trigger('notification', [{tag: 'success', content: 'You have received fresh positions for analysis!'}, true]);
+        $(distChess).trigger('batchReceivedFromServer', [clientBatch]);
+      }
+
+      else if (type === 'noBatchesAvailable') {
+        this.resetBatchRequestWaiter();
+        $(distChess.networkLogger).trigger('notification', [{sender: 'server', content: 'No positions for analysing available. Try again later.'}]);
+        $(distChess.notificationsChannel).trigger('notification', [{tag: 'danger', content: 'No positions available on the server'}]);
+        $(distChess).trigger('sleepMode');
+        //////
+        ////alert("Batches out");
+      }
+
+      else if (type === 'noGamesAvailable') {
+        $(distChess).trigger('noGamesAvailable');
+      }
+
+      else {
+        $(distChess.errorLogger).trigger('notification', ['NETWORK: Invalid response type from server', type]);
+      }
+
+    }
+
+};
+
+// These don't have modules for them. We keep needed state inside closure.
+(function() {
+
+  var positionsSoFarCounter = $('#positionsSoFar').find('span#counterValue');
+  var counter = 0;
+
+  $(distChess).on('positionEvaluated', function() {
+    positionsSoFarCounter.empty().append(++counter);
+
+  });
+
+  $(distChess).on('batchIsCompleted', function(e, batch) {
+
+    ////
+    ////alert("Batch done in (ms): " + batch.duration);
+  });
+
+})();
+
+
+
+
+
+  </script>
+  </body>
+  </html>

@@ -1,0 +1,43 @@
+[Event "JSC Velhot-EtVaS 3-1"]
+[Site "Cup Finland Team"]
+[Date "2013.??.??"]
+[Round "6.4"]
+[White "Paakkonen Timo"]
+[Black "Laakso Harri"]
+[Result "1-0"]
+[ECO "C02"]
+
+1. e4 e6 2. d4 d5 3. e5 c5 4. c3 Qb6 5. a3 Bd7 6. Nf3 Nc6 7. b4 cxd4 
+8. cxd4 Rc8 9. Be3 Nh6 10. Bd3 Ng4 11. O-O Be7 12. Nbd2 f6 13. exf6 Bxf6
+14. Nb3 O-O 15. Re1 Rce8 16. h3 Nxe3 17. Rxe3 g6 18. Nc5 Bc8 19. Bc2 Qc7
+20. Ba4 Qg7 21. Bxc6 bxc6 22. Ne5 Bxe5 23. Rxe5 Rf4 24. Qd2 Ref8 25. f3 
+Qf6 26. Rae1 Qh4 27. Nxe6 Bxe6 28. Rxe6 Rxd4 29. Qe3 Rc4 30. Re7 Qd4 
+31. Rxa7 Qxe3+ 32. Rxe3 Rf7 33. Ree7 Rxe7 34. Rxe7 Rc2 35. Kf1 Ra2 
+36. Ra7 d4 37. Rd7 Rxa3 38. Rxd4 Ra2 39. Rc4 Rb2 40. Kg1 Kf7 41. Rxc6 
+Rxb4 42. Rc7+ Kg8 43. Kf2 Rb5 44. h4 Ra5 45. Ke3 Rb5 46. Rd7 Ra5 47. g3 
+Rb5 48. Ke4 Ra5 49. g4 Rb5 50. Re7 Ra5 51. Kf4 Rb5 52. Rd7 Ra5 53. Ke4 
+Rb5 54. f4 Ra5 55. Rd5 Ra7 56. Ke5 Kf7 57. f5 gxf5 58. Kxf5 Rb7 59. g5 
+Ra7 60. h5 Rb7 61. h6 Ra7 62. Rb5 Rc7 63. Rb6 Rc5+ 64. Kg4 Rc4+ 65. Kh5 
+Ra4 66. Rb7+ Kg8 67. Rb8+ Kf7 68. Rh8 Ra1 69. Rxh7+ Kg8 70. Rg7+ Kh8 
+71. Re7 Ra6 72. g6 Ra8 73. Kg5 Rb8 74. Kf6 Rf8+ 75. Rf7 Re8 76. g7+ 1-0
+
+[Event "JSC Velhot-EtVaS 3-1"]
+[Site "Cup Finland Team"]
+[Date "2013.??.??"]
+[Round "6.5"]
+[White "Anttila Perttu"]
+[Black "Keskisarja Teemu"]
+[Result "1/2-1/2"]
+[ECO "B23"]
+
+1. e4 c5 2. Nc3 Nc6 3. f4 e6 4. Bb5 Nge7 5. e5 Nd4 6. Bd3 d5 7. Nb5 Nxb5
+8. Bxb5+ Bd7 9. Bxd7+ Qxd7 10. Nf3 Nc6 11. O-O Be7 12. d3 O-O 13. b3 b5 
+14. a4 a6 15. Bb2 Rfc8 16. Qe2 d4 17. Nd2 Nb4 18. Ne4 Nd5 19. Rf3 c4 
+20. bxc4 bxc4 21. dxc4 Ne3 22. c3 Nxc4 23. cxd4 Nxb2 24. Qxb2 Rab8 
+25. Qd2 Rc4 26. Rd3 Rxa4 27. Rxa4 Qxa4 28. h3 h6 29. Kh2 Qc6 30. d5 exd5
+31. Rxd5 Rb4 32. Rd4 a5 33. Nd6 Rxd4 34. Qxd4 a4 1/2-1/2
+
+
+
+
+

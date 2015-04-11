@@ -1,0 +1,27 @@
+{
+  "name": "distchess",
+  "version": "1.0.0",
+  "description": "Distributed Chess Analysis project",
+  "main": "bootstrap.min.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jusahah/DisCoChess"
+  },
+  "keywords": [
+    "chess",
+    "analysis",
+    "distributed"
+  ],
+  "author": "Jussi Hamalainen",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jusahah/DisCoChess/issues"
+  },
+  "homepage": "https://github.com/jusahah/DisCoChess",
+  "dependencies": {
+    "express": "^4.12.3"
+  }
+}
