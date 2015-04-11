@@ -3,7 +3,7 @@ var http = require("http");
 var fs = require('fs');
 var ch =  require('./chess');
 var chess = new ch.Chess();
-var readPGNStream = fs.createReadStream('pgn_input_test.txt');
+var readPGNStream = fs.createReadStream('14fin-9.pgn');
 var savePGNstream = fs.createWriteStream('pgn_output_test.txt');
 
 // Express stuff
@@ -21,11 +21,6 @@ app.use(bodyParser.json());
 app.use(function(req, res, next) {
 	requestTimes.push({ip: req.connection.remoteAddress, timestamp: Date.now()}); // Can overflow memory but that takes long time.
 	next();
-});
-
-app.get('/joo', function(req, res) {
-
-	////console.log("JOOO");
 });
 
 app.post('/api', function(req, res) {
@@ -465,7 +460,7 @@ var Game = function(id) {
       var batch = new Batch(this.runningNumber);
       this.pending.push(batch);
 
-      for (var i = 0; i < 12; i++) {
+      for (var i = 0; i < 24; i++) {
         ////console.log("SERVER: ADDING POS TO BATCH");
         var pos = this.positionStorage.shift();
         if (pos) {
@@ -757,6 +752,9 @@ var PGNFetcher = function(readStream, gameReceiver) {
 	this.onePart = function(part) {
 
 		if (this.partCounter % 2 !== 0 && this.partCounter !== 0) {
+			console.log('_----------------------_');
+			console.log(this.currentPart + "\n\n" + part);
+			console.log('_----------------------_');
 			this.games.push(this.currentPart + "\n\n" + part);
 		} else {
 			this.currentPart = part;
@@ -797,9 +795,11 @@ var PGNFetcher = function(readStream, gameReceiver) {
 	}.bind(this));
 
 	this.readStream.on('end', function() {
+		console.log("__________________" + this.games.length);
 		this.flushTemp();
 		this.gameReceiver.receiveGames(this.games);
 		this.games = [];
+		this.readStream.close();
 		
 	}.bind(this));
 }

@@ -1716,7 +1716,7 @@ var StateController = function() {
     // PositionController keeps list of positions (batch = set of positions)
     // WorkerController polls PositionController whenever worker thread needs new job
     distChess.positionController = new BatchController(distChess.net);
-    distChess.workerController = new WorkerController(4, 10, distChess.positionController);
+    distChess.workerController = new WorkerController(4, 13, distChess.positionController);
     distChess.workerController.initWorkers();
 
     //distChess.nodeEvaluator = new NodeEvaluator(distChess.workerController);
