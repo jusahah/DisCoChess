@@ -450,9 +450,9 @@
 
     if (method === 'batch') {
       //////
-      ////alert("SERVER: Getting batch");
+      //////alert("SERVER: Getting batch");
       //////
-      ////alert("SERVER: Batch request");
+      //////alert("SERVER: Batch request");
 
       var batch = SERVER.serverBatchController.needBatch();
 
@@ -468,7 +468,7 @@
       // Save resultBatch to database etc.
       var batchObj = JSON.parse(data);
       //
-      ////alert("JOO");
+      //////alert("JOO");
       var serverBatch = new Batch(batchObj.id);
 
       // Later you could perhaps just autocopy using jQuery's helper function
@@ -489,9 +489,11 @@
   }
 
 
-var Batch = function(id) {
+var Batch = function(id, hashKey) {
 
   this.id = id;
+  this.hashKey = hashKey;
+
   this.openPositions = [];
   this.pendingPositions = [];
   this.donePositions = [];
@@ -562,7 +564,7 @@ var Batch = function(id) {
 
   this.addPosition = function(pos) {
     ////
-    ////alert("ADDING POS INSIDE BATCH");
+    //////alert("ADDING POS INSIDE BATCH");
     this.openPositions.push(pos);
   }
 
@@ -579,7 +581,7 @@ var Batch = function(id) {
     this.donePositions = [];
 
     this.addInfo = function(info) {
-      //alert("ADDING INFO: " + JSON.stringify(info));
+      ////alert("ADDING INFO: " + JSON.stringify(info));
       this.info = info;
     }
 
@@ -587,7 +589,7 @@ var Batch = function(id) {
 
 
       ////
-      ////alert("GAMES POS LENGTH: " + this.openPositions.length + " | GAMEID: " + pos.game + " === " + this.id);
+      //////alert("GAMES POS LENGTH: " + this.openPositions.length + " | GAMEID: " + pos.game + " === " + this.id);
 
       var idx = this.openPositions.indexOf(pos);
 
@@ -632,7 +634,7 @@ var Batch = function(id) {
         return false;
       }
       //////
-      ////alert("Removing from pending, adding to done");
+      //////alert("Removing from pending, adding to done");
       //this.standardizeEvaluationForWhite(position);
       this.pendingPositions.splice(index, 1);
       this.donePositions.push(position);
@@ -663,7 +665,7 @@ var Batch = function(id) {
       if (this.positionStorage.length === 0) return false;
 
       ////
-      ////alert("Position available: " + this.positionStorage.length);
+      //////alert("Position available: " + this.positionStorage.length);
 
       ++this.runningNumber;
       var batch = new Batch(this.runningNumber);
@@ -675,20 +677,20 @@ var Batch = function(id) {
           var game = this.gameStorage.findGame(pos.game); // Inform game that its position has been allocated to outgoing batch 
           if (!game) {
             ////
-            ////alert("NO GAME");
+            //////alert("NO GAME");
             // Position has no game, so its orphan
             continue; // Dumps the position
           }
           if (game.yourPositionHasBeenAddedToBatch(pos)) batch.addPosition(pos);                   
         } else {  
             ////
-            ////alert("NO POS");    
+            //////alert("NO POS");    
             break;
         }
       }
 
       ////
-      ////alert("BATCH LEN: " + batch.openPositions.length);
+      //////alert("BATCH LEN: " + batch.openPositions.length);
 
       return batch;
     }
@@ -703,9 +705,9 @@ var Batch = function(id) {
 
     this.routeResultPositionToGame = function(position) {
       //////
-      ////alert("Routing result to game" + Math.random());
+      //////alert("Routing result to game" + Math.random());
       //////
-      ////alert(position.fen + " - " +  position.evaluation);
+      //////alert(position.fen + " - " +  position.evaluation);
       if (position && typeof position === 'object') {
         var gameID = position.game;
         var game = this.gameStorage.findGame(gameID);
@@ -714,10 +716,10 @@ var Batch = function(id) {
 
           game.receiveArrivingPosition(position);
 /*          ////
-////alert("Game found: D = " + game.donePositions.length + ", P = " + game.pendingPositions.length + ", O = " + game.openPositions.length);*/
+//////alert("Game found: D = " + game.donePositions.length + ", P = " + game.pendingPositions.length + ", O = " + game.openPositions.length);*/
           if (game.isReady()) {
             ////
-            ////alert("Game is ready");
+            //////alert("Game is ready");
             this.gameStorage.removeGame(gameID);
             this.doneGameHandler.receiveReadyGame(game);
           }
@@ -735,7 +737,7 @@ var Batch = function(id) {
       var positions = batch.donePositions;
 
       //////
-      ////alert(positions.length);
+      //////alert(positions.length);
 
       for (var i = positions.length - 1; i >= 0; i--) {
         this.routeResultPositionToGame(positions[i]);
@@ -781,7 +783,7 @@ var Batch = function(id) {
 
         game.addInfo(info);
         //////
-        ////alert("Game succesfully positionalized");
+        //////alert("Game succesfully positionalized");
         console.log("GAME SUCCESSFULLY POSITIONALIZED");
         for (var i = positions.length - 1; i >= 0; i--) {
           var p = positions[i];
@@ -815,8 +817,8 @@ var Batch = function(id) {
       // Save to DB
 
       //
-      alert("GAME READY: " + game.info.white + " | " + game.info.black);
-      alert(pgnString);
+      //alert("GAME READY: " + game.info.white + " | " + game.info.black);
+      //alert(pgnString);
     }
 
     this.getPGNFromPositions = function(game) {
@@ -878,7 +880,7 @@ var Batch = function(id) {
         
       };
 
-      //alert(info.white + " | " + info.black);
+      ////alert(info.white + " | " + info.black);
       return info;
 
 
@@ -892,7 +894,7 @@ var Batch = function(id) {
       var chess = this.parserEngine;
 
       if (!chess.load_pgn(pgn)) {
-        alert("FAIL");
+        //alert("FAIL");
         return false;
       }
       var halfMoveFromEnd = 0;
@@ -949,7 +951,7 @@ var Batch = function(id) {
   setTimeout(function() {
 
     ////
-    ////alert("Adding test games to server");
+    //////alert("Adding test games to server");
     pgn = ['[Event "Casual Game"]',
        '[Site "Berlin GER"]',
        '[Date "1852.??.??"]',
@@ -1219,7 +1221,7 @@ var StateController = function() {
 
     if (this.transits[this.currentState.name].indexOf(to.name) === -1) {
       //////
-      ////alert("Transit failed: " + this.currentState.name + " -> " + to.name);
+      //////alert("Transit failed: " + this.currentState.name + " -> " + to.name);
       $(distChess.errorLogger).trigger('notification', ['STATE CONTR: State transit does not exist: ' + this.currentState.name + " -> " + to.name]);
       return false;
     }
@@ -1235,7 +1237,7 @@ var StateController = function() {
 
   $(distChess).on('sleepMode', function() {
     //////
-    ////alert("Sleep mode turning on");
+    //////alert("Sleep mode turning on");
     this.doTransit(this.states['analysisEnded']);
 
   }.bind(this));
@@ -1302,7 +1304,7 @@ var StateController = function() {
 
     this.onStateEnd = function() {
       ////
-      ////alert("Analysis stopping");
+      //////alert("Analysis stopping");
       $(distChess).trigger('stopAnalysing');
     }
   }
@@ -1466,21 +1468,21 @@ var StateController = function() {
 
     this.updateAutoAnalysisButton = function(e, isOn) {
 
-      //alert("UPDATING AUTO ANALYSIS BTN: " + isOn);
+      ////alert("UPDATING AUTO ANALYSIS BTN: " + isOn);
 
       if (isOn === true) {
-        //alert('TO TRUE');
+        ////alert('TO TRUE');
         this.$autoButton.empty().append("Auto-analysis ON");
         this.$autoButton.removeClass('btn-danger').addClass('btn-success');
       }
 
       else if (isOn === false) {
-        //alert('TO FALSE');
+        ////alert('TO FALSE');
         this.$autoButton.empty().append("Auto-analysis OFF");
         this.$autoButton.removeClass('btn-success').addClass('btn-danger');        
       }
 
-      //alert('OFF');
+      ////alert('OFF');
     }
 
     this.updateBoard = function(fen) {
@@ -1489,7 +1491,7 @@ var StateController = function() {
       console.log("UPDATING ANALYSIS BOARD: " + fen);
       var fenPosition = fen.split(" ")[0];
       //////
-      ////alert(fenPosition);
+      //////alert(fenPosition);
       this.chessBoard.position(fenPosition);
     }
 
@@ -1502,7 +1504,7 @@ var StateController = function() {
 
     $(distChess).on('positionAnalysisStarted', function(e, id, fen) {
       //////
-      ////alert(id + " | " + this.currentThread + " | " + fen);
+      //////alert(id + " | " + this.currentThread + " | " + fen);
       if (parseInt(id) === parseInt(this.currentThread)) {
         // Update UI Board
         this.updateBoard(fen);
@@ -1872,7 +1874,7 @@ var LoggerUI = function(logChannels, $elem) {
 
     if (this.currentChannel) {
       ////
-      ////alert("LOG CHANNEL FOUND");
+      //////alert("LOG CHANNEL FOUND");
       var logs = this.currentChannel.getLogs();
       var html = '';
 
@@ -1898,7 +1900,7 @@ var LoggerUI = function(logChannels, $elem) {
   $(distChess).on('viewChange', function(e, viewName) {
     if (viewName === 'logView') {
       //////
-      ////alert("Updating log UI");
+      //////alert("Updating log UI");
       this.updateUI();
     }
   }.bind(this));
@@ -2048,6 +2050,8 @@ var BatchController = function(net) {
   }
 
   this.batchIsDone = function(batch) {
+
+    //alert("BATCH DONE: " + batch.hashKey);
 
     batch.recordDuration();
     console.log("BATCH IS DONE");
@@ -2476,6 +2480,8 @@ var Net = function(config) {
     }
 
     this.sendResults = function(resultBatch) {
+
+      //alert(resultBatch.hashKey);
       
       $(distChess.networkLogger).trigger('notification', [{sender: 'client', content: 'Send analysed positions to server. Batch id: ' + resultBatch.id + ' | Num of positions: ' + resultBatch.donePositions.length}]);
       this.makeRequest('results', resultBatch);   
@@ -2492,7 +2498,7 @@ var Net = function(config) {
 
         setTimeout(function() {
           //
-          ////alert(JSON.stringify(payload));
+          //////alert(JSON.stringify(payload));
           var response = SERVER.api({method: method, payload: JSON.stringify(payload)});
           this.receiveFromServer(response.tag, response.data);
         }.bind(this), timeout);
@@ -2515,6 +2521,8 @@ var Net = function(config) {
           
           //this.testBool = true;
         }
+
+        ////alert("HASH = " + payload.hashKey);
         
         var req = $.ajax({
           method: "POST",
@@ -2561,7 +2569,8 @@ var Net = function(config) {
       else if (type === 'batchForAnalysis') {
         this.resetBatchRequestWaiter();
         var batchObj = JSON.parse(data.batch);
-        var clientBatch = new Batch(batchObj.id);
+        //alert("HASH ARRIVED: " + batchObj.hashKey);
+        var clientBatch = new Batch(batchObj.id, batchObj.hashKey);
         clientBatch.openPositions = batchObj.openPositions;
         $(distChess.networkLogger).trigger('notification', [{sender: 'server', content: 'You have received a new set of fresh positions from server!'}]);
         $(distChess.notificationsChannel).trigger('notification', [{tag: 'success', content: 'You have received fresh positions for analysis!'}, true]);
@@ -2574,7 +2583,7 @@ var Net = function(config) {
         $(distChess.notificationsChannel).trigger('notification', [{tag: 'danger', content: 'No positions available on the server'}]);
         $(distChess).trigger('sleepMode');
         //////
-        ////alert("Batches out");
+        //////alert("Batches out");
       }
 
       else if (type === 'noGamesAvailable') {
@@ -2603,7 +2612,7 @@ var Net = function(config) {
   $(distChess).on('batchIsCompleted', function(e, batch) {
 
     ////
-    ////alert("Batch done in (ms): " + batch.duration);
+    //////alert("Batch done in (ms): " + batch.duration);
   });
 
 })();

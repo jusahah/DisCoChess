@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Distributed Chess Analysis Project</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font: 13px Helvetica, Arial; }
+
+      .mainView {
+        display: none;
+      }
+
+    </style>
+  </head>
+  <body>
+  <form action="/receivepgn" method="post" enctype="multipart/form-data">
+  <input type="file" name ="file">
+      <input type="submit" value="Upload selected file to server">
+  </form> 
+
+
+  </body>
+  </html>

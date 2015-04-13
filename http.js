@@ -9,8 +9,47 @@ var savePGNstream = fs.createWriteStream('pgn_output_test.txt');
 // Express stuff
 var express = require('express');
 var app = express();
+var multer  = require('multer')
+
 
 var bodyParser  = require('body-parser');
+
+var fileID = 0;
+
+function getRandomHash() {
+	var keys = 'abcdfghjlktyrseqpwvumn';
+	var l = keys.length;
+	var hash = '';
+	var i = 3;
+
+	while(i) {
+		hash += keys[Math.floor(Math.random() * l)];
+		i--;
+	}
+
+	return hash;
+}
+
+// Multer receives files and checks them
+app.use(multer({ 
+	dest: './uploads/', 
+	limits: {fileSize: 50000},
+	rename: function() {
+		return getRandomHash() + fileID++;
+	},
+	onFileUploadStart: function(file) {
+		if (file.extension !== 'pgn') {
+			console.log("FILE UPLOAD FAILED - NOT PGN FILE");
+			res.failure = 'Not a pgn file';
+			return false;
+		}
+
+	},
+	onFileUploadComplete: function(file, req, res) {
+	console.log("FILE UPLOAD COMPLETE!: " + file.name + " | " + file.path);
+	res.resultFilePath = file.path;
+	SERVER.fileManager.addFileForAnalysis(file.name, file.path);
+}}));
 
 app.use(express.static('public'));
 app.use(bodyParser.urlencoded({
@@ -22,6 +61,20 @@ app.use(function(req, res, next) {
 	requestTimes.push({ip: req.connection.remoteAddress, timestamp: Date.now()}); // Can overflow memory but that takes long time.
 	next();
 });
+
+app.post('/receivepgn', function(req, res) {
+
+	// If file already exists, send error page to user
+
+	// Else parse file into pgns
+
+	res.send("Analysis request has been confirmed. Your games will be available in address: " + res.resultFilePath);
+
+	//SERVER.fileManager.addFileForAnalysis()
+
+
+});
+
 
 app.post('/api', function(req, res) {
 	
@@ -101,9 +154,11 @@ SERVER.api = function(request) {
 
       // Save resultBatch to database etc.
       var batchObj = JSON.parse(data);
+
+      console.log("INCOMING HASH: " + batchObj.hashKey);
       //
       ////alert("JOO");
-      var serverBatch = new Batch(batchObj.id);
+      var serverBatch = new Batch(batchObj.id, batchObj.hashKey);
 
       // Later you could perhaps just autocopy using jQuery's helper function
       serverBatch.openPositions = batchObj.openPositions;
@@ -147,10 +202,9 @@ var GameStorage = function(pgnParser, positionStorage) {
 
     this.addGame = function(positionsAndInfo) {
 
+      // UPDATE 13.0.4.15 - positionsAnfInfo now also contains output stream obj and ref to group (=file namespace)
+
       //var gameID = Math.floor(Math.random() * 1000000000); // REFACTOR - needs to check that doesn't exist already
-      var gameID = this.runningGameID++;
-      var game = new Game(gameID);
-      this.games[gameID] = game;
 
       //var positionsAndInfo = this.pgnParser.parseSinglePGN(pgn);
       var positions = positionsAndInfo.positions;
@@ -158,7 +212,13 @@ var GameStorage = function(pgnParser, positionStorage) {
 
       if (positions) {
 
+      	var gameID = this.runningGameID++;
+      	var game = new Game(gameID);
+      	game.setOutputStream(positionsAndInfo.output);
+      	game.group = positionsAndInfo.group;
+      	this.games[gameID] = game;
         game.addInfo(info);
+        game.group.gamesAdded++; // Group only knows # of games it has to wait for; speficic game objects are not of interest
         //////
         ////alert("Game succesfully positionalized");
         //console.log("GAME SUCCESSFULLY POSITIONALIZED");
@@ -182,9 +242,11 @@ var GameStorage = function(pgnParser, positionStorage) {
 
 }
 
-var Batch = function(id) {
+var Batch = function(id, hashKey) {
 
   this.id = id;
+  this.hashKey = hashKey;
+
   this.openPositions = [];
   this.pendingPositions = [];
   this.donePositions = [];
@@ -194,7 +256,7 @@ var Batch = function(id) {
   this.duration;
 
   this.hasExpired = function() {
-  	return Date.now() - this.constructTime > 10000;
+  	return Date.now() - this.constructTime > 30000;
   }
 
   this.recordAddTime = function() {
@@ -272,9 +334,16 @@ var Game = function(id) {
 
     this.info;
 
+    this.output;
+    this.group;
+
     this.openPositions = [];
     this.pendingPositions = [];
     this.donePositions = [];
+
+    this.setOutputStream = function(op) {
+    	this.output = op;
+    }
 
     this.addInfo = function(info) {
       //alert("ADDING INFO: " + JSON.stringify(info));
@@ -374,7 +443,8 @@ var Game = function(id) {
     this.removeFromPending = function(batch) {
 
     	for (var i = this.pending.length - 1; i >= 0; i--) {
-    		if (this.pending[i].id === batch.id) break;	
+    		// Both id and hash key must match
+    		if (this.pending[i].id === batch.id && this.pending[i].hashKey === batch.hashKey) break;	
     	};
 
     	if (i !== -1) {
@@ -382,6 +452,8 @@ var Game = function(id) {
     		console.log(this.pending.length);
     		this.pending.splice(i, 1);
     		console.log(this.pending.length);
+    	} else {
+    		console.log("BATCH FAILED WITH HASH: " + batch.hashKey);
     	}
     }
 
@@ -427,17 +499,17 @@ var Game = function(id) {
     	for (i = dones.length - 1; i >= 0; i--) {
     		var game = this.gameStorage.findGame(dones[i].game);
     		if (game && game.yourPositionHasBeenKickedFromBatch(dones[i])) {
-    			this.positionStorage.push(dones[i]);
+    			this.positionStorage.unshift(dones[i]);
     		}
     		
     	};
     	for (i = pend.length - 1; i >= 0; i--) {
     		var game = this.gameStorage.findGame(pend[i].game);
-    		if (game && game.yourPositionHasBeenKickedFromBatch(pend[i])) this.positionStorage.push(pend[i]);
+    		if (game && game.yourPositionHasBeenKickedFromBatch(pend[i])) this.positionStorage.unshift(pend[i]);
     	};
     	for (i= open.length - 1; i >= 0; i--) {
     		var game = this.gameStorage.findGame(open[i].game);
-    		if (game && game.yourPositionHasBeenKickedFromBatch(open[i])) this.positionStorage.push(open[i]);
+    		if (game && game.yourPositionHasBeenKickedFromBatch(open[i])) this.positionStorage.unshift(open[i]);
     	};
 
     	console.log("POS: " + this.positionStorage.length)
@@ -446,6 +518,11 @@ var Game = function(id) {
     this.batchExpired = function(batch) {
 
 
+    }
+
+    this.getHash = function() {
+
+    	return Math.floor(Math.random() * 100000000);
     }
 
     this.needBatch = function() {
@@ -457,7 +534,7 @@ var Game = function(id) {
       ////alert("Position available: " + this.positionStorage.length);
 
       ++this.runningNumber;
-      var batch = new Batch(this.runningNumber);
+      var batch = new Batch(this.runningNumber, this.getHash());
       this.pending.push(batch);
 
       for (var i = 0; i < 24; i++) {
@@ -532,7 +609,11 @@ var ResultReceiver = function(doneGameHandler, gameStorage, batchController) {
 
     this.processResultBatch = function(batch) {
 
-      //console.log("RESULT: Processing batch starts");
+console.log("______________________");
+    	console.log("______________________");
+      console.log("RESULT: Processing batch starts: " + batch.hashKey);
+      console.log("______________________");
+      console.log("______________________");
       var positions = batch.donePositions;
       this.batchController.removeFromPending(batch);
 
@@ -561,8 +642,22 @@ var DoneGameHandler = function(outputStream) {
       // Save to DB
 
       //
-      console.log("PELI VALMIS: " + game.id);	
-      this.outputStream.write(pgnString + "\n\n");
+      console.log("PELI VALMIS: " + game.id + " , group: " + game.group.id);	
+
+      
+      if (game.output) {
+      	console.log("WRITING TO SPECIFIC STREAM");
+      	// If output stream was given
+      	game.output.write(pgnString + "\n\n");
+      } else {
+	    // Else use modules default output stream
+	    console.log("WRITING TO DEFAULT STREAM");
+	    this.outputStream.write(pgnString + "\n\n");
+	  }
+	  // Inform group if game has one
+	  if (game.group) {
+	  	game.group.gameDone();
+	  }
     }
 
     this.getPGNFromPositions = function(game) {
@@ -712,21 +807,29 @@ var GameReceiver = function(gameStorage, parser) {
 	this.gameStorage = gameStorage;
 	this.parser = parser;
 
-	this.addGame = function(pgn) {
+	this.addGame = function(pgn, group, output) {
 		var gameObj = this.parser.parseSinglePGN(pgn);
+		gameObj.output = output;
+		gameObj.group = group;
+		console.log("ADDING OUTPUT TO GAME: " + output);
 		//console.log(gameObj.info.white + "\n" + gameObj.info.black + "\n" + gameObj.positions.length);
 		this.gameStorage.addGame(gameObj);
 
 	}
 
-	this.receiveGames = function(games) {
+	this.receiveGames = function(games, group, output) {
+		console.log('GROUP IS : ' + group.id);
 		// Parsing pgns into positions is heavy job. We need to make sure we don't steal the main thread altogether.
 		var dispatchGame = function() {
 			if (games.length > 0) {
 				var game = games.shift();
-				this.addGame(game);
+				this.addGame(game, group, output);
 				setImmediate(dispatchGame);
 			}	
+			else {
+				group.allGamesAdded();
+				console.log("NO GAMES ANYMORE");
+			}
 		}.bind(this);
 		dispatchGame();
 
@@ -736,7 +839,7 @@ var GameReceiver = function(gameStorage, parser) {
 
 
 
-var PGNFetcher = function(readStream, gameReceiver) {
+var PGNFetcher = function(group, filename, readStream, gameReceiver) {
 
 	this.readStream = readStream;
 	this.gameReceiver = gameReceiver;
@@ -779,6 +882,7 @@ var PGNFetcher = function(readStream, gameReceiver) {
 	this.receiveChunk = function(chunk) {
 		this.currentTemp += chunk;
 		if (this.currentTemp.indexOf('\n\n') !== -1) {
+			console.log("FOUND SPLITTER");
 			var foundParts = this.splitGames(this.currentTemp);
 			this.processParts(foundParts);
 		}
@@ -791,17 +895,26 @@ var PGNFetcher = function(readStream, gameReceiver) {
 	}
 
 	this.readStream.on('data', function(chunk) {
+		//console.log(chunk.toString());
 		this.receiveChunk(chunk.toString());		
 	}.bind(this));
 
+	this.readStream.on('error', function() {
+		this.currentPGNString = 0; // Help GC, i guess
+		this.currentPart = 0;
+		return false; // Does nothing much, but indicates maintainer this is error cond
+	});
+
 	this.readStream.on('end', function() {
-		console.log("__________________" + this.games.length);
+		console.log("__________________" + this.games.length + " | GROUP: " + filename);
 		this.flushTemp();
-		this.gameReceiver.receiveGames(this.games);
+		this.gameReceiver.receiveGames(this.games, group, filename);
 		this.games = [];
 		this.readStream.close();
 		
 	}.bind(this));
+
+	console.log("NEW PGN FETCHER DONE");
 }
 
 var BatchMonitor = function(interval, batchController) {
@@ -833,15 +946,138 @@ var BatchMonitor = function(interval, batchController) {
 
 }
 
+var GameGroup = function(id, writeStream, outputPath) {
+
+	this.id = id;
+	this.groupActive = false;
+	this.gamesAdded = 0;
+
+	this.groupReady = function() {
+		writeStream.close();
+		setImmediate(function() {
+			SERVER.fileManager.groupIsReady(this.id, outputPath);
+		}.bind(this));
+	}
+
+	this.gameDone = function() {
+
+		if (this.groupActive) {
+			this.gamesAdded--;
+			console.log("GAMES LEFT IN GROUP: " + this.gamesAdded);
+			console.log('KKKKKKKKKKKKKKKKKKKKKKKKKk');
+			if (this.gamesAdded <= 0) {
+				this.groupReady();
+			}
+		}
+
+
+
+	}
+
+	this.allGamesAdded = function() {
+		this.groupActive = true;
+	}
+
+
+}
+
+var FileManager = function() {
+
+	this.pendingFiles = {};
+
+	this.runningID = 1;
+
+	this.checkInitialFiles = function() {
+
+		fs.readdir('uploads', function(err, files) {
+			if (err) {
+				// Log error
+				throw err;
+			}
+			this.pushCurrentFiles(files);
+		}.bind(this));
+
+	}
+
+	this.pushCurrentFiles = function(files) {
+		console.log("------------PUSHING CURRENT FILES: " + files.length + " ----------------------");
+		for (var i = files.length - 1; i >= 0; i--) {
+			this.addFileForAnalysis(files[i], 'uploads/' + files[i]);
+		};
+	}
+
+	this.addFileForAnalysis = function(filename, path) {
+
+		console.log('/uploads/' + filename);
+		console.log(path);
+		var readStream = fs.createReadStream(path);
+		var outputPath = 'public/downloads/' + filename;
+		var fd = fs.openSync(outputPath, 'w'); // This is pretty quick, we are simply creating empty file
+
+		fs.open(outputPath, 'w', function(err, fd) {
+			if (err) {
+				readStream.close();
+				throw err;
+			}
+		
+			var writeStream = fs.createWriteStream(outputPath);
+			var group = new GameGroup(++this.runningID, writeStream, outputPath);
+			this.pendingFiles[this.runningID] = {group: group, inputPath: path};
+			var fetch = new PGNFetcher(group, writeStream, readStream, SERVER.gameReceiver);
+			console.log("FETCHING SHOULD NOW COMMENCE");			
+		}.bind(this));
+
+
+	}
+
+	this.groupIsReady = function(groupID, outputPath) {
+		console.log("GROUP IS READY: " + groupID);
+		fs.unlink(this.pendingFiles[groupID].inputPath, function() {
+			/// Nothing to do
+		});
+		SERVER.userNotificator.groupIsReady(outputPath);
+		this.pendingFiles[groupID] = null;
+		delete this.pendingFiles[groupID];
+		
+	}
+
+
+}
+
+var EmailGateWay = function() {
+
+	this.groupIsReady = function(path) {
+
+		console.log("_______________- ");
+		console.log("_______________- ");
+		console.log("_______________- ");
+		console.log("GROUP IS READY: " + path);
+		console.log("_______________- ");
+		console.log("_______________- ");
+		console.log("_______________- ");
+
+
+	}
+}
+
 SERVER.pgnParser = new PGNParser(new ch.Chess());
 SERVER.doneGameHandler = new DoneGameHandler(savePGNstream);
 SERVER.gameStorage = new GameStorage(SERVER.pgnParser, SERVER.positionStorage);
 SERVER.serverBatchController = new ServerBatchController(SERVER.gameStorage, SERVER.positionStorage);
 SERVER.resultReceiver = new ResultReceiver(SERVER.doneGameHandler, SERVER.gameStorage, SERVER.serverBatchController);
 SERVER.batchMonitor = new BatchMonitor(8000, SERVER.serverBatchController);
+SERVER.fileManager = new FileManager();
+SERVER.gameReceiver = new GameReceiver(SERVER.gameStorage, SERVER.pgnParser);
+SERVER.userNotificator = new EmailGateWay();
 
-SERVER.pgnFetcher = new PGNFetcher(readPGNStream, new GameReceiver(SERVER.gameStorage, SERVER.pgnParser));
 
+//SERVER.pgnFetcher = new PGNFetcher('14fin-9.pgn', readPGNStream, SERVER.gameReceiver);
+
+SERVER.fileManager.checkInitialFiles();
 SERVER.batchMonitor.startUp();
+
+
+
+
 
 
